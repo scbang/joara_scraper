@@ -4,7 +4,7 @@ FREE_QUERY = {
     "QUERY":         {
         "sl_subcategory": "series",
     },
-    "PAGE_NO_LIST":  [1],
+    "PAGE_NO_LIST":  list(range(1, 6)),
     "EPISODE_LIMIT": None,
 }
 LATELY_QUERY = {

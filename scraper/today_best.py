@@ -29,27 +29,35 @@ def _get_book_info(book_home_link, date_obj):
     soup = BeautifulSoup(page.text, 'html.parser')
 
     book_total_recommend_count = soup.select(".txt_c_sty01 > .info_c > .info2 > .date")[1].text
+    book_total_favorite_count = soup.select(".txt_c_sty01 > .info_c > .info2 > .date")[2].text
     tbl_list = soup.select(".tbl_work > tbody > tr")
 
     target_uploaded_date = f"{date_obj['cur_year']}/{date_obj['cur_month']}/{date_obj['cur_day']}"
 
     for tr in tbl_list:
         chapter_cell_list = tr.select("td.chapter_cell")
-        episode_date = chapter_cell_list[2].text.strip()
-        first_epi_view_count = episode_view_count = chapter_cell_list[3].text.strip()
+        if len(chapter_cell_list) == 6:
+            episode_date_index = 2
+            episode_view_count_index = 3
+        else:
+            episode_date_index = 3
+            episode_view_count_index = 4
+        episode_date = chapter_cell_list[episode_date_index].text.strip()
+        first_epi_view_count = episode_view_count = chapter_cell_list[episode_view_count_index].text.strip()
         if episode_date <= target_uploaded_date:
             if not target_date_last_epi_view_count:
                 target_date_last_epi_view_count = episode_view_count
             if episode_date == target_uploaded_date:
                 target_date_uploaded_epi_count += 1
 
-    return book_total_recommend_count, first_epi_view_count, target_date_last_epi_view_count, target_date_uploaded_epi_count
+    return book_total_recommend_count, book_total_favorite_count, first_epi_view_count, target_date_last_epi_view_count, target_date_uploaded_epi_count
 
 
 def _get_list(query_obj, date_obj):
     query = dict(query_obj["QUERY"])
     episode_limit = query_obj["EPISODE_LIMIT"]
-    print("랭킹|작가 ID|작가 닉네임|장르|제목|최근연재회차|투데이 베스트지수|투데이 선작|투데이 추천|투데이 조회|작품 전체 추천수|첫회 조회수|수집 날짜 조회수|수집 날짜 연재 회차수")
+    print(
+        "랭킹|작가 ID|작가 닉네임|장르|제목|최근연재회차|투데이 베스트지수|투데이 선작|투데이 추천|투데이 조회|작품 전체 추천수|작품 전체 선작|첫회 조회수|수집 날짜 조회수|수집 날짜 연재 회차수|선작비|연독률|추천비")
     for page_no in query_obj["PAGE_NO_LIST"]:
         query["page_no"] = page_no
         query.update(date_obj)
@@ -57,6 +65,7 @@ def _get_list(query_obj, date_obj):
         soup = BeautifulSoup(page.text, 'html.parser')
         tbl_list = soup.select(".tbl_list > tbody > tr")
         top_ranking = 1
+        book_total_episode_count = len(tbl_list)
         for tr in tbl_list:
             td_list = tr.select("td")
 
@@ -87,9 +96,17 @@ def _get_list(query_obj, date_obj):
             recommend_count = td_list[5].text
             view_count = td_list[6].text
 
-            book_total_recommend_count, first_epi_view_count, target_date_last_epi_view_count, target_date_uploaded_epi_count = \
+            book_total_recommend_count, book_total_favorite_count, first_epi_view_count, target_date_last_epi_view_count, target_date_uploaded_epi_count = \
                 _get_book_info(book_home_link, date_obj)
 
+            book_total_recommend_count_num = float(book_total_recommend_count.replace(",", ""))
+            book_total_favorite_count_num = float(book_total_favorite_count.replace(",", ""))
+            first_epi_view_count_num = float(first_epi_view_count.replace(",", ""))
+            target_date_last_epi_view_count_num = float(target_date_last_epi_view_count.replace(",", ""))
+            sun_jak_bi = book_total_favorite_count_num / first_epi_view_count_num * 100.0
+            yun_dok_yul = target_date_last_epi_view_count_num / first_epi_view_count_num * 100.0
+            chu_choen_bi = (book_total_recommend_count_num / book_total_episode_count) \
+                           / book_total_favorite_count_num * 100.0
             print(
                 f"{ranking}"
                 f"|{author}"
@@ -101,7 +118,11 @@ def _get_list(query_obj, date_obj):
                 f"|{recommend_count}"
                 f"|{view_count}"
                 f"|{book_total_recommend_count}"
+                f"|{book_total_favorite_count}"
                 f"|{first_epi_view_count}"
                 f"|{target_date_last_epi_view_count}"
                 f"|{target_date_uploaded_epi_count}"
+                f"|{sun_jak_bi:.1f}"
+                f"|{yun_dok_yul:.1f}"
+                f"|{chu_choen_bi:.1f}"
             )
