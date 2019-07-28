@@ -13,12 +13,12 @@ def _convert_to_float(num_string):
 
 def get_free_list(date_obj):
     print("무료 순위")
-    _get_list(config.FREE_QUERY, date_obj)
+    return [["무료 순위"]] + _get_list(config.FREE_QUERY, date_obj)
 
 
 def get_lately_list(date_obj):
     print("신규 순위")
-    _get_list(config.LATELY_QUERY, date_obj)
+    return [["신규 순위"]] + _get_list(config.LATELY_QUERY, date_obj)
 
 
 def _get_book_info(book_home_link, date_obj):
@@ -71,6 +71,9 @@ def _get_list(query_obj, date_obj):
     print(
         "랭킹|작가 ID|작가 닉네임|장르|제목|최근연재회차|투데이 베스트지수|투데이 선작|투데이 추천|투데이 조회|작품 전체 추천수|작품 전체 선작|첫회 조회수|수집 날짜 조회수|수집 날짜 연재 회차수|선작비|연독률|추천비"
     )
+    book_list = [["랭킹", "작가 ID", "작가 닉네임", "장르", "제목", "최근연재회차", "투데이 베스트지수", "투데이 선작", "투데이 추천", "투데이 조회", "작품 전체 추천수",
+                  "작품 전체 선작", "첫회 조회수", "수집 날짜 조회수", "수집 날짜 연재 회차수", "선작비", "연독률", "추천비"]]
+
     for page_no in query_obj["PAGE_NO_LIST"]:
         query["page_no"] = page_no
         query.update(date_obj)
@@ -128,7 +131,8 @@ def _get_list(query_obj, date_obj):
                            / book_total_favorite_count_num * 100.0
             print(
                 f"{ranking}"
-                f"|{author}"
+                f"|{author.member_id}"
+                f"|{author.member_nickname}"
                 f"|{genre}"
                 f"|{title}"
                 f"|{episode}"
@@ -145,3 +149,24 @@ def _get_list(query_obj, date_obj):
                 f"|{yun_dok_yul:.1f}"
                 f"|{chu_choen_bi:.1f}"
             )
+            book_list.append([
+                f"{ranking}",
+                f"{author.member_id}",
+                f"{author.member_nickname}",
+                f"{genre}",
+                f"{title}",
+                f"{episode}",
+                f"{best_score}",
+                f"{favorite_count}",
+                f"{recommend_count}",
+                f"{view_count}",
+                f"{book_total_recommend_count}",
+                f"{book_total_favorite_count}",
+                f"{first_epi_view_count}",
+                f"{target_date_last_epi_view_count}",
+                f"{target_date_uploaded_epi_count}",
+                f"{sun_jak_bi:.1f}",
+                f"{yun_dok_yul:.1f}",
+                f"{chu_choen_bi:.1f}",
+            ])
+    return book_list

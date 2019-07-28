@@ -5,3 +5,4 @@ class Author(object):
 
     def __str__(self):
         return f"{self.member_id}|{self.member_nickname}"
+

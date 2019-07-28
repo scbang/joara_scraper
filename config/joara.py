@@ -15,3 +15,4 @@ LATELY_QUERY = {
     "EPISODE_LIMIT": 19,
 }
 COOKIES = {'best_favor_genre': '22'}  # 로맨스판타지
+DEFAULT_RESULT_XLSX_FILE_NAME = "조아라_투베분석.xlsx"
