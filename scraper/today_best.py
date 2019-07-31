@@ -65,6 +65,9 @@ def _get_book_info(book_home_link, date_obj):
             if episode_date == target_uploaded_date:
                 target_date_uploaded_epi_count += 1
 
+    if target_date_last_epi_view_count is None:
+        target_date_last_epi_view_count = "0"
+
     return {
         "book_total_recommend_count":      book_total_recommend_count,
         "book_total_favorite_count":       book_total_favorite_count,
