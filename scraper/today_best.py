@@ -110,8 +110,8 @@ def _get_list(query_obj, date_obj):
             genre = re.split("[\[\]]", title_element.strong.text.strip())[1]
             td_list[2].a.strong.decompose()
             titles = re.split("[<>]", title_element.text.strip())
-            title = titles[0].strip()
-            episode = int(titles[1].strip().split("편")[0])
+            title = titles[1].strip()
+            episode = int(titles[len(titles) - 2].strip().split("편")[0])
 
             if episode_limit and episode_limit < episode:
                 continue
