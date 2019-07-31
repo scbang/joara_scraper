@@ -15,4 +15,16 @@ LATELY_QUERY = {
     "EPISODE_LIMIT": 19,
 }
 COOKIES = {'best_favor_genre': '22'}  # 로맨스판타지
+CSS_SELECTOR = {
+    "NORMAL":  {
+        "BOOK_INFO":      ".txt_c_sty01 > .info_c > .info2 > .date",
+        "EPISODE_DETAIL": ".tbl_work > tbody > tr",
+        "CELL":           "td.chapter_cell",
+    },
+    "NOBLESS": {
+        "BOOK_INFO":      ".flistCon",
+        "EPISODE_DETAIL": ".partList",
+        "CELL":           ".partListInfo",
+    },
+}
 DEFAULT_RESULT_XLSX_FILE_NAME = "조아라_투베분석.xlsx"

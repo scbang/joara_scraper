@@ -32,16 +32,25 @@ def _get_book_info(book_home_link, date_obj):
     page = requests.get(new_location, cookies=config.COOKIES)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    book_info_element_list = soup.select(".txt_c_sty01 > .info_c > .info2 > .date")
-    book_total_recommend_count = book_info_element_list[1].text
-    book_total_favorite_count = book_info_element_list[2].text
+    css_selector = config.CSS_SELECTOR["NORMAL"]
+    book_info_element_list = soup.select(css_selector["BOOK_INFO"])
+    date_format = "{cur_year}/{cur_month}/{cur_day}"
+    if len(book_info_element_list) < 1:
+        css_selector = config.CSS_SELECTOR["NOBLESS"]
+        book_info_element_list = soup.select(css_selector["BOOK_INFO"])[1].text.split("|")
+        book_total_recommend_count = book_info_element_list[1].strip().split(" ")[1]
+        book_total_favorite_count = book_info_element_list[2].strip().split(" ")[1]
+        date_format = "{cur_year}.{cur_month}.{cur_day}"
+    else:
+        book_total_recommend_count = book_info_element_list[1].text
+        book_total_favorite_count = book_info_element_list[2].text
 
-    tbl_list = soup.select(".tbl_work > tbody > tr")
+    tbl_list = soup.select(css_selector["EPISODE_DETAIL"])
 
-    target_uploaded_date = f"{date_obj['cur_year']}/{date_obj['cur_month']}/{date_obj['cur_day']}"
+    target_uploaded_date = date_format.format(**date_obj)
 
     for tr in tbl_list:
-        chapter_cell_list = tr.select("td.chapter_cell")
+        chapter_cell_list = tr.select(css_selector["CELL"])
         if len(chapter_cell_list) == 6:
             episode_date_index = 2
             episode_view_count_index = 3
