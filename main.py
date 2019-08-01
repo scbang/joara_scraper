@@ -3,13 +3,19 @@ import os
 import sys
 
 import openpyxl
+from openpyxl.cell.cell import Cell
+from openpyxl.styles import Font, NamedStyle, PatternFill
+from openpyxl.styles.colors import BLUE, RED
 
 import config
 import scraper
 
 
-def _get_excel_sheet_name():
-    pass
+def styled_cells(data, ws, style):
+    for c in data:
+        c = Cell(ws, value=c)
+        c.style = style
+        yield c
 
 
 def main(date_str, file_name):
@@ -33,13 +39,48 @@ def main(date_str, file_name):
     else:
         xlsx_obj = openpyxl.Workbook()
 
-    sheet = xlsx_obj.create_sheet(title=execution_datetime_str.replace(":", "-"))
+    sheet = xlsx_obj.create_sheet(title=f'{date_str} at {execution_datetime_str.replace(":", "-")}')
 
     sheet_rows = sheet_rows + scraper.today_best.get_free_list(date_obj)
     sheet_rows = sheet_rows + scraper.today_best.get_lately_list(date_obj)
 
+    over_10k_favorite_color = BLUE
+    over_10k_favorite_bg_color = "F0E8DD"
+
+    over_20k_favorite_color = RED
+    over_20k_favorite_bg_color = "D1F5EC"
+
+    over_10k_style = NamedStyle(name="over_10k_style")
+    over_10k_style.font = Font(color=over_10k_favorite_color)
+    over_10k_style.fill = PatternFill(start_color=over_10k_favorite_bg_color,
+                                      end_color=over_10k_favorite_bg_color,
+                                      fill_type="solid")
+
+    over_20k_style = NamedStyle(name="over_20k_style")
+    over_20k_style.font = Font(color=over_20k_favorite_color)
+    over_20k_style.fill = PatternFill(start_color=over_20k_favorite_bg_color,
+                                      end_color=over_20k_favorite_bg_color,
+                                      fill_type="solid")
+
+    xlsx_obj.add_named_style(over_10k_style)
+    xlsx_obj.add_named_style(over_20k_style)
+
     for row in sheet_rows:
+        row_style = None
+        if len(row) > 13:
+            try:
+                book_total_favorite_count = int(row[12].replace(",", ""))
+                if book_total_favorite_count >= 20000:
+                    row_style = over_20k_style
+                elif book_total_favorite_count >= 10000:
+                    row_style = over_10k_style
+
+                if row_style is not None:
+                    row = styled_cells(row, sheet, row_style)
+            except:
+                pass
         sheet.append(row)
+
     xlsx_obj.save(file_name)
 
 
