@@ -20,7 +20,7 @@ def styled_cells(data, ws, style):
 
 def main(date_str, file_name):
     sheet_rows = []
-    execution_datetime_str = str(datetime.datetime.now())
+    execution_datetime_str = str(datetime.datetime.now())[0:19]
     line = f"조아라 투베 분석기 - 실행일시 : {execution_datetime_str}"
     sheet_rows.append([line])
     print(line)
@@ -39,7 +39,7 @@ def main(date_str, file_name):
     else:
         xlsx_obj = openpyxl.Workbook()
 
-    sheet = xlsx_obj.create_sheet(title=f'{date_str} at {execution_datetime_str.replace(":", "-")}')
+    sheet = xlsx_obj.create_sheet(title=f'{date_str} {execution_datetime_str.replace(":", "-")}')
 
     sheet_rows = sheet_rows + scraper.today_best.get_free_list(date_obj)
     sheet_rows = sheet_rows + scraper.today_best.get_lately_list(date_obj)
@@ -73,9 +73,9 @@ def main(date_str, file_name):
             try:
                 book_total_favorite_count = int(row[12].replace(",", ""))
                 if book_total_favorite_count >= 20000:
-                    row_style = over_20k_style
+                    row_style = "over_20k_style"
                 elif book_total_favorite_count >= 10000:
-                    row_style = over_10k_style
+                    row_style = "over_10k_style"
 
                 if row_style is not None:
                     row = styled_cells(row, sheet, row_style)
