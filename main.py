@@ -1,6 +1,6 @@
-import datetime
 import os
 import sys
+from datetime import date, datetime, timedelta
 
 import openpyxl
 from openpyxl.cell.cell import Cell
@@ -20,7 +20,7 @@ def styled_cells(data, ws, style):
 
 def main(date_str, file_name):
     sheet_rows = []
-    execution_datetime_str = str(datetime.datetime.now())[0:19]
+    execution_datetime_str = str(datetime.now())[0:19]
     line = f"조아라 투베 분석기 - 실행일시 : {execution_datetime_str}"
     sheet_rows.append([line])
     print(line)
@@ -87,7 +87,13 @@ def main(date_str, file_name):
 
 
 if __name__ == "__main__":
-    today = datetime.date.today()
-    date_string = sys.argv[1] if len(sys.argv) >= 2 else f"{today.year%100:02d}{today.month:02d}{today.day:02d}"
-    file_name = sys.argv[2] if len(sys.argv) >= 3 else config.DEFAULT_RESULT_XLSX_FILE_NAME
-    main(date_string, file_name)
+    today = date.today()
+    start_date_string = sys.argv[1] if len(sys.argv) >= 2 else f"{today.year%100:02d}{today.month:02d}{today.day:02d}"
+    end_date_string = sys.argv[2] if len(sys.argv) >= 3 else start_date_string
+    xlsx_file_name = sys.argv[3] if len(sys.argv) >= 4 else config.DEFAULT_RESULT_XLSX_FILE_NAME
+    start_date = datetime.strptime(start_date_string, "%y%m%d")
+    end_date = datetime.strptime(end_date_string, "%y%m%d")
+    one_day = timedelta(days=1)
+    while end_date >= start_date:
+        main(start_date.strftime("%y%m%d"), xlsx_file_name)
+        start_date += one_day

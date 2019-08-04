@@ -89,7 +89,7 @@ def _get_list(query_obj, date_obj):
         "랭킹",
         "작가 ID",
         "작가 닉네임",
-        "장르",
+        "수집 날짜",
         "제목",
         "최근연재회차",
         "수집 날짜 최신 연재회차",
@@ -106,9 +106,12 @@ def _get_list(query_obj, date_obj):
         "연독률",
         "추천비",
         "회당 선작수",
+        "장르",
     ]
     book_list = [headers]
     print("|".join(headers))
+
+    target_date = "{cur_year}{cur_month}{cur_day}".format(**date_obj)
 
     for page_no in query_obj["PAGE_NO_LIST"]:
         query["page_no"] = page_no
@@ -172,7 +175,7 @@ def _get_list(query_obj, date_obj):
                 f"{ranking}",
                 f"{author.member_id}",
                 f"{author.member_nickname}",
-                f"{genre}",
+                f"{target_date}",
                 f"{title}",
                 f"{episode}",
                 f"{target_date_last_epi}",
@@ -189,6 +192,7 @@ def _get_list(query_obj, date_obj):
                 f"{yun_dok_yul:.1f}",
                 f"{chu_choen_bi:.1f}",
                 f"{favorite_count_per_episode:.1f}",
+                f"{genre}",
             ]
             print("|".join(row))
             book_list.append(row)
