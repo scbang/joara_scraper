@@ -71,7 +71,7 @@ def main(date_str, file_name):
         row_style = None
         if len(row) > 13:
             try:
-                book_total_favorite_count = int(row[12].replace(",", ""))
+                book_total_favorite_count = row[12]
                 if book_total_favorite_count >= 20000:
                     row_style = "over_20k_style"
                 elif book_total_favorite_count >= 10000:
@@ -82,6 +82,9 @@ def main(date_str, file_name):
             except:
                 pass
         sheet.append(row)
+
+    sheet["I105"] = "=SUM(I5:I104)"
+    sheet["K105"] = "=SUM(K5:K104)"
 
     xlsx_obj.save(file_name)
 

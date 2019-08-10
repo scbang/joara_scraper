@@ -7,6 +7,10 @@ import config
 from data_object.author import Author
 
 
+def _convert_to_int(num_string):
+    return int(num_string.replace(",", ""))
+
+
 def _convert_to_float(num_string):
     return float(num_string.replace(",", ""))
 
@@ -73,12 +77,12 @@ def _get_book_info(book_home_link, date_obj):
         target_date_last_epi_view_count = "0"
 
     return {
-        "book_total_recommend_count":      book_total_recommend_count,
-        "book_total_favorite_count":       book_total_favorite_count,
-        "first_epi_view_count":            first_epi_view_count,
-        "target_date_last_epi_view_count": target_date_last_epi_view_count,
+        "book_total_recommend_count":      _convert_to_int(book_total_recommend_count),
+        "book_total_favorite_count":       _convert_to_int(book_total_favorite_count),
+        "first_epi_view_count":            _convert_to_int(first_epi_view_count),
+        "target_date_last_epi_view_count": _convert_to_int(target_date_last_epi_view_count),
         "target_date_uploaded_epi_count":  target_date_uploaded_epi_count,
-        "target_date_last_epi":            target_date_last_epi,
+        "target_date_last_epi":            _convert_to_int(target_date_last_epi),
     }
 
 
@@ -146,10 +150,10 @@ def _get_list(query_obj, date_obj):
             if episode_limit and episode_limit < episode:
                 continue
 
-            best_score = td_list[3].text
-            favorite_count = td_list[4].text
-            recommend_count = td_list[5].text
-            view_count = td_list[6].text
+            best_score = _convert_to_int(td_list[3].text)
+            favorite_count = _convert_to_int(td_list[4].text)
+            recommend_count = _convert_to_int(td_list[5].text)
+            view_count = _convert_to_int(td_list[6].text)
 
             book_info = _get_book_info(book_home_link, date_obj)
 
@@ -160,40 +164,40 @@ def _get_list(query_obj, date_obj):
             target_date_uploaded_epi_count = book_info["target_date_uploaded_epi_count"]
             target_date_last_epi = book_info["target_date_last_epi"]
 
-            book_total_recommend_count_num = _convert_to_float(book_total_recommend_count)
-            book_total_favorite_count_num = _convert_to_float(book_total_favorite_count)
-            first_epi_view_count_num = _convert_to_float(first_epi_view_count)
-            target_date_last_epi_view_count_num = _convert_to_float(target_date_last_epi_view_count)
+            book_total_recommend_count_num = float(book_total_recommend_count)
+            book_total_favorite_count_num = float(book_total_favorite_count)
+            first_epi_view_count_num = float(first_epi_view_count)
+            target_date_last_epi_view_count_num = float(target_date_last_epi_view_count)
 
             sun_jak_bi = book_total_favorite_count_num / first_epi_view_count_num * 100.0
             yun_dok_yul = target_date_last_epi_view_count_num / first_epi_view_count_num * 100.0
             chu_choen_bi = (book_total_recommend_count_num / book_total_episode_count) \
                            / book_total_favorite_count_num * 100.0
 
-            favorite_count_per_episode = _convert_to_float(book_total_favorite_count) / episode
+            favorite_count_per_episode = float(book_total_favorite_count) / episode
             row = [
-                f"{ranking}",
+                ranking,
                 f"{author.member_id}",
                 f"{author.member_nickname}",
                 f"{target_date}",
                 f"{title}",
-                f"{episode}",
-                f"{target_date_last_epi}",
-                f"{best_score}",
-                f"{favorite_count}",
-                f"{recommend_count}",
-                f"{view_count}",
-                f"{book_total_recommend_count}",
-                f"{book_total_favorite_count}",
-                f"{first_epi_view_count}",
-                f"{target_date_last_epi_view_count}",
-                f"{target_date_uploaded_epi_count}",
+                episode,
+                target_date_last_epi,
+                best_score,
+                favorite_count,
+                recommend_count,
+                view_count,
+                book_total_recommend_count,
+                book_total_favorite_count,
+                first_epi_view_count,
+                target_date_last_epi_view_count,
+                target_date_uploaded_epi_count,
                 f"{sun_jak_bi:.1f}",
                 f"{yun_dok_yul:.1f}",
                 f"{chu_choen_bi:.1f}",
                 f"{favorite_count_per_episode:.1f}",
                 f"{genre}",
             ]
-            print("|".join(row))
+            print("|".join(list(map(str, row))))
             book_list.append(row)
     return book_list
