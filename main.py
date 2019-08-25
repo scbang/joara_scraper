@@ -21,7 +21,7 @@ def styled_cells(data, ws, style):
 def main(date_str, file_name):
     sheet_rows = []
     execution_datetime_str = str(datetime.now())[0:19]
-    line = f"조아라 투베 분석기 - 실행일시 : {execution_datetime_str}"
+    line = f"조아라 투베 자동 수집기 - 실행일시 : {execution_datetime_str}"
     sheet_rows.append([line])
     print(line)
     line = f"조회 날짜 : {date_str}"

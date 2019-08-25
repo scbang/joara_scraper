@@ -1,4 +1,5 @@
 import re
+from urllib import parse
 
 import requests
 from bs4 import BeautifulSoup
@@ -8,10 +9,14 @@ from data_object.author import Author
 
 
 def _convert_to_int(num_string):
+    if num_string is None:
+        return -1;
     return int(num_string.replace(",", ""))
 
 
 def _convert_to_float(num_string):
+    if num_string is None:
+        return -1;
     return float(num_string.replace(",", ""))
 
 
@@ -89,29 +94,7 @@ def _get_book_info(book_home_link, date_obj):
 def _get_list(query_obj, date_obj):
     query = dict(query_obj["QUERY"])
     episode_limit = query_obj["EPISODE_LIMIT"]
-    headers = [
-        "랭킹",
-        "작가 ID",
-        "작가 닉네임",
-        "수집 날짜",
-        "제목",
-        "최근연재회차",
-        "수집 날짜 최신 연재회차",
-        "투데이 베스트지수",
-        "투데이 선작",
-        "투데이 추천",
-        "투데이 조회",
-        "작품 전체 추천수",
-        "작품 전체 선작",
-        "첫회 조회수",
-        "수집 날짜 조회수",
-        "수집 날짜 연재 회차수",
-        "선작비",
-        "연독률",
-        "추천비",
-        "회당 선작수",
-        "장르",
-    ]
+    headers = config.DATA_HEADERS
     book_list = [headers]
     print("|".join(headers))
 
@@ -155,6 +138,7 @@ def _get_list(query_obj, date_obj):
             recommend_count = _convert_to_int(td_list[5].text)
             view_count = _convert_to_int(td_list[6].text)
 
+            book_code = dict(parse.parse_qsl(parse.urlsplit(book_home_link).query))["book_code"]
             book_info = _get_book_info(book_home_link, date_obj)
 
             book_total_recommend_count = book_info["book_total_recommend_count"]
@@ -175,29 +159,52 @@ def _get_list(query_obj, date_obj):
                            / book_total_favorite_count_num * 100.0
 
             favorite_count_per_episode = float(book_total_favorite_count) / episode
-            row = [
-                ranking,
-                f"{author.member_id}",
-                f"{author.member_nickname}",
-                f"{target_date}",
-                f"{title}",
-                episode,
-                target_date_last_epi,
-                best_score,
-                favorite_count,
-                recommend_count,
-                view_count,
-                book_total_recommend_count,
-                book_total_favorite_count,
-                first_epi_view_count,
-                target_date_last_epi_view_count,
-                target_date_uploaded_epi_count,
-                f"{sun_jak_bi:.1f}",
-                f"{yun_dok_yul:.1f}",
-                f"{chu_choen_bi:.1f}",
-                f"{favorite_count_per_episode:.1f}",
-                f"{genre}",
-            ]
-            print("|".join(list(map(str, row))))
-            book_list.append(row)
+            row = {}
+            i = 0
+            row[headers[i]] = ranking
+            i += 1
+            row[headers[i]] = author.member_id
+            i += 1
+            row[headers[i]] = author.member_nickname
+            i += 1
+            row[headers[i]] = target_date
+            i += 1
+            row[headers[i]] = book_code
+            i += 1
+            row[headers[i]] = title
+            i += 1
+            row[headers[i]] = episode
+            i += 1
+            row[headers[i]] = target_date_last_epi
+            i += 1
+            row[headers[i]] = best_score
+            i += 1
+            row[headers[i]] = favorite_count
+            i += 1
+            row[headers[i]] = recommend_count
+            i += 1
+            row[headers[i]] = view_count
+            i += 1
+            row[headers[i]] = book_total_recommend_count
+            i += 1
+            row[headers[i]] = book_total_favorite_count
+            i += 1
+            row[headers[i]] = first_epi_view_count
+            i += 1
+            row[headers[i]] = target_date_last_epi_view_count
+            i += 1
+            row[headers[i]] = target_date_uploaded_epi_count
+            i += 1
+            row[headers[i]] = f"{sun_jak_bi:.1f}"
+            i += 1
+            row[headers[i]] = f"{yun_dok_yul:.1f}"
+            i += 1
+            row[headers[i]] = f"{chu_choen_bi:.1f}"
+            i += 1
+            row[headers[i]] = f"{favorite_count_per_episode:.1f}"
+            i += 1
+            row[headers[i]] = f"{genre}"
+            print("|".join(list(map(lambda h: str(row[h]), headers))))
+            book_list.append(list(map(lambda h: row[h], headers)))
+
     return book_list
