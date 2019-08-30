@@ -138,7 +138,7 @@ def main(result_file_name, analyzed_file_name):
     execution_datetime_str = str(datetime.now())[0:19]
 
     filename, file_extension = os.path.splitext(analyzed_file_name)
-    analyzed_file_name_now = f"{filename}_{execution_datetime_str}{file_extension}"
+    analyzed_file_name_now = f'{filename}_{execution_datetime_str.replace(":", "-")}{file_extension}'
 
     xlsx_obj = openpyxl.Workbook()
 
