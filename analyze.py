@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from copy import copy
 from datetime import date, datetime
@@ -98,13 +98,11 @@ def create_summary_sheet(xlsx_obj, all_rows, book_code, ws_name):
     headers = config.DATA_HEADERS
     sheet.append(headers)
     for book_row in all_rows["group_by_book_code"][book_code]:
-        book_title = book_row[5].value
         sheet.append(openxyl_row_copy(sheet, book_row))
     max_row = sheet.max_row
     sheet.cell(max_row + 1, 10, f'=AVERAGEIF(H2:H{max_row},"<20",J2:J{max_row})')
     sheet.cell(max_row + 1, 12, f'=AVERAGEIF(H2:H{max_row},"<20",L2:L{max_row})')
-    book_title = book_title.replace("?", "")
-    sheet.title = f"{ws_name}_{book_title}"
+    sheet.title = f"{ws_name}_{book_code}"
 
 
 def create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows):
