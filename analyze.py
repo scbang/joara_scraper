@@ -36,6 +36,7 @@ def _load_from_result_file(result_file_name):
     top_ranked_list = []
     group_by_book_code = {}
     over_20k_favorite_count_set = set()
+    over_15k_favorite_count_set = set()
     xlsx_obj = openpyxl.load_workbook(result_file_name)
     for ws in xlsx_obj.worksheets:
         in_free_list = in_lately_list = False
@@ -61,10 +62,12 @@ def _load_from_result_file(result_file_name):
             if ranking == 1:
                 top_ranked_list.append(row)
 
-            book_code = row[4].value
+            book_code = int(row[4].value)
             book_total_favorite_count = int(row[13].value)
             if book_total_favorite_count >= 20000:
                 over_20k_favorite_count_set.add(book_code)
+            elif book_total_favorite_count >= 15000:
+                over_15k_favorite_count_set.add(book_code)
 
             if book_code not in group_by_book_code:
                 group_by_book_code[book_code] = []
@@ -82,12 +85,14 @@ def _load_from_result_file(result_file_name):
         "lately_list":                 lately_list,
         "top_ranked_list":             top_ranked_list,
         "over_20k_favorite_count_set": over_20k_favorite_count_set,
+        "over_15k_favorite_count_set": over_15k_favorite_count_set,
         "group_by_book_code":          group_by_book_code,
     }
 
 
 def create_summary_sheet(xlsx_obj, all_rows, book_code, ws_name):
     if book_code not in all_rows["group_by_book_code"]:
+        print(f"{book_code} not found.")
         return
     sheet = xlsx_obj.create_sheet()
     headers = config.DATA_HEADERS
@@ -98,38 +103,47 @@ def create_summary_sheet(xlsx_obj, all_rows, book_code, ws_name):
     max_row = sheet.max_row
     sheet.cell(max_row + 1, 10, f'=AVERAGEIF(H2:H{max_row},"<20",J2:J{max_row})')
     sheet.cell(max_row + 1, 12, f'=AVERAGEIF(H2:H{max_row},"<20",L2:L{max_row})')
+    book_title = book_title.replace("?", "")
     sheet.title = f"{ws_name}_{book_title}"
 
 
-def create_always_include_summary_sheet(xlsx_obj, all_rows):
+def create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows):
     for book_code in config.ALWAYS_ANALYZE_BOOK_CODE_LIST:
-        create_summary_sheet(xlsx_obj, all_rows, book_code, "작품 분석")
+        create_summary_sheet(xlsx_obj_20k, all_rows, book_code, "작품 분석")
+        create_summary_sheet(xlsx_obj_15k, all_rows, book_code, "작품 분석")
 
 
-def create_summary_sheets(xlsx_obj, all_rows):
-    create_always_include_summary_sheet(xlsx_obj, all_rows)
+def create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, all_rows):
+    create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows)
     for book_code in all_rows["over_20k_favorite_count_set"]:
-        create_summary_sheet(xlsx_obj, all_rows, book_code, "2만작 분석")
+        create_summary_sheet(xlsx_obj_20k, all_rows, book_code, "2만작 분석")
+    for book_code in all_rows["over_15k_favorite_count_set"]:
+        create_summary_sheet(xlsx_obj_15k, all_rows, book_code, "1.5만작 분석")
 
 
-def create_calendar_sheet(xlsx_obj, all_rows):
+def create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows):
     pass
 
 
-def create_monthly_sheet(xlsx_obj, all_rows):
+def create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows):
     top_ranked_book_code_set = set()
     for top_ranked in all_rows["top_ranked_list"]:
         target_date = datetime.strptime(top_ranked[3].value, "%y%m%d")
         ws_name = f"{target_date.year}년{target_date.month}월_1위"
-        if ws_name in xlsx_obj:
-            ws = xlsx_obj[ws_name]
+        if ws_name in xlsx_obj_20k:
+            ws_20k = xlsx_obj_20k[ws_name]
         else:
-            ws = xlsx_obj.create_sheet(title=ws_name)
+            ws_20k = xlsx_obj_20k.create_sheet(title=ws_name)
+        if ws_name in xlsx_obj_15k:
+            ws_15k = xlsx_obj_15k[ws_name]
+        else:
+            ws_15k = xlsx_obj_15k.create_sheet(title=ws_name)
 
         book_code = top_ranked[4].value
         strike = book_code in top_ranked_book_code_set
         top_ranked_book_code_set.add(book_code)
-        ws.append(openxyl_row_copy(ws, top_ranked, strike))
+        ws_20k.append(openxyl_row_copy(ws_20k, top_ranked, strike))
+        ws_15k.append(openxyl_row_copy(ws_15k, top_ranked, strike))
 
 
 def main(result_file_name, analyzed_file_name):
@@ -138,20 +152,26 @@ def main(result_file_name, analyzed_file_name):
     execution_datetime_str = str(datetime.now())[0:19]
 
     filename, file_extension = os.path.splitext(analyzed_file_name)
-    analyzed_file_name_now = f'{filename}_{execution_datetime_str.replace(":", "-")}{file_extension}'
+    analyzed_file_name_now_20k = f'{filename}_2만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
+    analyzed_file_name_now_15k = f'{filename}_1.5만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
 
-    xlsx_obj = openpyxl.Workbook()
+    xlsx_obj_20k = openpyxl.Workbook()
+    xlsx_obj_15k = openpyxl.Workbook()
 
-    util.add_styles(xlsx_obj)
+    util.add_styles(xlsx_obj_20k)
+    util.add_styles(xlsx_obj_15k)
 
-    for ws in xlsx_obj.worksheets:
-        xlsx_obj.remove(ws)
+    for ws in xlsx_obj_20k.worksheets:
+        xlsx_obj_20k.remove(ws)
+    for ws in xlsx_obj_15k.worksheets:
+        xlsx_obj_15k.remove(ws)
 
-    create_summary_sheets(xlsx_obj, all_rows)
-    create_calendar_sheet(xlsx_obj, all_rows)
-    create_monthly_sheet(xlsx_obj, all_rows)
+    create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, all_rows)
+    create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows)
+    create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, all_rows)
 
-    xlsx_obj.save(analyzed_file_name_now)
+    xlsx_obj_20k.save(analyzed_file_name_now_20k)
+    xlsx_obj_15k.save(analyzed_file_name_now_15k)
 
 
 if __name__ == "__main__":
