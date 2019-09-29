@@ -83,8 +83,8 @@ def main(date_str, file_name):
                 pass
         sheet.append(row)
 
-    sheet["I105"] = "=SUM(I5:I104)"
-    sheet["K105"] = "=SUM(K5:K104)"
+    sheet["J105"] = "=SUM(J5:J104)"
+    sheet["L105"] = "=SUM(L5:L104)"
 
     xlsx_obj.save(file_name)
 
