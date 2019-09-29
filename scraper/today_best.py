@@ -104,7 +104,8 @@ def _get_list(query_obj, date_obj):
         query["page_no"] = page_no
         query.update(date_obj)
         page = requests.get(config.BASE_PATH, params=query, cookies=config.COOKIES)
-        soup = BeautifulSoup(page.text, 'html.parser')
+        page_text = page.text.replace("&#", "#")
+        soup = BeautifulSoup(page_text, 'html.parser')
         tbl_list = soup.select(".tbl_list > tbody > tr")
         top_ranking = 1
         book_total_episode_count = len(tbl_list)
