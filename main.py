@@ -69,9 +69,9 @@ def main(date_str, file_name):
 
     for row in sheet_rows:
         row_style = None
-        if len(row) > 13:
+        if len(row) > 14:
             try:
-                book_total_favorite_count = row[12]
+                book_total_favorite_count = row[13]
                 if book_total_favorite_count >= 20000:
                     row_style = "over_20k_style"
                 elif book_total_favorite_count >= 10000:
