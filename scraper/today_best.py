@@ -1,8 +1,8 @@
 import re
-from urllib import parse
 
 import requests
 from bs4 import BeautifulSoup
+from urllib import parse
 
 import config
 from data_object.author import Author
@@ -82,12 +82,12 @@ def _get_book_info(book_home_link, date_obj):
         target_date_last_epi_view_count = "0"
 
     return {
-        "book_total_recommend_count":      _convert_to_int(book_total_recommend_count),
-        "book_total_favorite_count":       _convert_to_int(book_total_favorite_count),
-        "first_epi_view_count":            _convert_to_int(first_epi_view_count),
+        "book_total_recommend_count": _convert_to_int(book_total_recommend_count),
+        "book_total_favorite_count": _convert_to_int(book_total_favorite_count),
+        "first_epi_view_count": _convert_to_int(first_epi_view_count),
         "target_date_last_epi_view_count": _convert_to_int(target_date_last_epi_view_count),
-        "target_date_uploaded_epi_count":  target_date_uploaded_epi_count,
-        "target_date_last_epi":            _convert_to_int(target_date_last_epi),
+        "target_date_uploaded_epi_count": target_date_uploaded_epi_count,
+        "target_date_last_epi": _convert_to_int(target_date_last_epi),
     }
 
 
@@ -156,8 +156,7 @@ def _get_list(query_obj, date_obj):
 
             sun_jak_bi = book_total_favorite_count_num / first_epi_view_count_num * 100.0
             yun_dok_yul = target_date_last_epi_view_count_num / first_epi_view_count_num * 100.0
-            chu_choen_bi = (book_total_recommend_count_num / book_total_episode_count) \
-                           / book_total_favorite_count_num * 100.0
+            chu_choen_bi = f"{(book_total_recommend_count_num / book_total_episode_count) / book_total_favorite_count_num * 100.0:.1f}" if book_total_favorite_count_num != 0 else "N/A"
 
             favorite_count_per_episode = float(book_total_favorite_count) / episode
             row = {}
@@ -200,7 +199,7 @@ def _get_list(query_obj, date_obj):
             i += 1
             row[headers[i]] = f"{yun_dok_yul:.1f}"
             i += 1
-            row[headers[i]] = f"{chu_choen_bi:.1f}"
+            row[headers[i]] = chu_choen_bi
             i += 1
             row[headers[i]] = f"{favorite_count_per_episode:.1f}"
             i += 1
