@@ -1,8 +1,8 @@
 import re
+from urllib import parse
 
 import requests
 from bs4 import BeautifulSoup
-from urllib import parse
 
 import config
 from data_object.author import Author
@@ -44,6 +44,7 @@ def _get_book_info(book_home_link, date_obj):
     css_selector = config.CSS_SELECTOR["NORMAL"]
     book_info_element_list = soup.select(css_selector["BOOK_INFO"])
     date_format = "{cur_year}/{cur_month}/{cur_day}"
+    introduce_text = soup.select(".t_cont_v")[0].text.strip()
     if len(book_info_element_list) < 1:
         css_selector = config.CSS_SELECTOR["NOBLESS"]
         book_info_element_list = soup.select(css_selector["BOOK_INFO"])[1].text.split("|")
@@ -88,6 +89,7 @@ def _get_book_info(book_home_link, date_obj):
         "target_date_last_epi_view_count": _convert_to_int(target_date_last_epi_view_count),
         "target_date_uploaded_epi_count": target_date_uploaded_epi_count,
         "target_date_last_epi": _convert_to_int(target_date_last_epi),
+        "introduce_text": introduce_text,
     }
 
 
@@ -148,6 +150,7 @@ def _get_list(query_obj, date_obj):
             target_date_last_epi_view_count = book_info["target_date_last_epi_view_count"]
             target_date_uploaded_epi_count = book_info["target_date_uploaded_epi_count"]
             target_date_last_epi = book_info["target_date_last_epi"]
+            introduce_text = book_info["introduce_text"]
 
             book_total_recommend_count_num = float(book_total_recommend_count)
             book_total_favorite_count_num = float(book_total_favorite_count)
@@ -204,6 +207,8 @@ def _get_list(query_obj, date_obj):
             row[headers[i]] = f"{favorite_count_per_episode:.1f}"
             i += 1
             row[headers[i]] = f"{genre}"
+            i += 1
+            row[headers[i]] = f"{introduce_text}"
             print("|".join(list(map(lambda h: str(row[h]), headers))))
             book_list.append(list(map(lambda h: row[h], headers)))
 

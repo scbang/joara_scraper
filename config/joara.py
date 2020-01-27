@@ -1,30 +1,32 @@
 HOST = "http://www.joara.com"
 BASE_PATH = HOST + "/best/today_best_list.html"
 FREE_QUERY = {
-    "QUERY":         {
+    "QUERY": {
         "sl_subcategory": "series",
     },
-    "PAGE_NO_LIST":  list(range(1, 6)),
+    # "PAGE_NO_LIST": list(range(1, 2)),
+    "PAGE_NO_LIST": list(range(1, 6)),
     "EPISODE_LIMIT": None,
 }
 LATELY_QUERY = {
-    "QUERY":         {
+    "QUERY": {
         "sl_subcategory": "lately",
     },
-    "PAGE_NO_LIST":  list(range(1, 6)),
+    # "PAGE_NO_LIST": list(range(1, 2)),
+    "PAGE_NO_LIST": list(range(1, 6)),
     "EPISODE_LIMIT": 19,
 }
 COOKIES = {'best_favor_genre': '22'}  # 로맨스판타지
 CSS_SELECTOR = {
-    "NORMAL":  {
-        "BOOK_INFO":      ".txt_c_sty01 > .info_c > .info2 > .date",
+    "NORMAL": {
+        "BOOK_INFO": ".txt_c_sty01 > .info_c > .info2 > .date",
         "EPISODE_DETAIL": ".tbl_work > tbody > tr",
-        "CELL":           "td.chapter_cell",
+        "CELL": "td.chapter_cell",
     },
     "NOBLESS": {
-        "BOOK_INFO":      ".flistCon",
+        "BOOK_INFO": ".flistCon",
         "EPISODE_DETAIL": ".partList",
-        "CELL":           ".partListInfo",
+        "CELL": ".partListInfo",
     },
 }
 DEFAULT_RESULT_XLSX_FILE_NAME = "조아라_투베분석.xlsx"
@@ -53,6 +55,7 @@ DATA_HEADERS = [
     "추천비",
     "회당 선작수",
     "장르",
+    "소개글",
 ]
 
 ALWAYS_ANALYZE_BOOK_CODE_LIST = [

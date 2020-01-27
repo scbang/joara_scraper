@@ -29,9 +29,9 @@ def main(date_str, file_name):
     print(line)
 
     date_obj = {
-        'cur_year':  date_str[0:2],
+        'cur_year': date_str[0:2],
         'cur_month': date_str[2:4],
-        'cur_day':   date_str[4:6],
+        'cur_day': date_str[4:6],
     }
 
     if os.path.isfile(file_name):
@@ -82,6 +82,9 @@ def main(date_str, file_name):
             except:
                 pass
         sheet.append(row)
+
+    for row_index in list(range(0, sheet.max_row)):
+        sheet.row_dimensions[row_index].height = 15
 
     sheet["J105"] = "=SUM(J5:J104)"
     sheet["L105"] = "=SUM(L5:L104)"
