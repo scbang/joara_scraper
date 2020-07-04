@@ -3,6 +3,7 @@ from urllib import parse
 
 import requests
 from bs4 import BeautifulSoup
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
 import config
 from data_object.author import Author
@@ -150,7 +151,7 @@ def _get_list(query_obj, date_obj):
             target_date_last_epi_view_count = book_info["target_date_last_epi_view_count"]
             target_date_uploaded_epi_count = book_info["target_date_uploaded_epi_count"]
             target_date_last_epi = book_info["target_date_last_epi"]
-            introduce_text = book_info["introduce_text"]
+            introduce_text = ILLEGAL_CHARACTERS_RE.sub('', book_info["introduce_text"])
 
             book_total_recommend_count_num = float(book_total_recommend_count)
             book_total_favorite_count_num = float(book_total_favorite_count)
