@@ -134,9 +134,6 @@ def _get_list(query_obj, date_obj):
             title = titles[0].strip()
             episode = int(titles[len(titles) - 2].strip().split("편")[0])
 
-            if episode_limit and episode_limit < episode:
-                continue
-
             best_score = _convert_to_int(td_list[3].text)
             favorite_count = _convert_to_int(td_list[4].text)
             recommend_count = _convert_to_int(td_list[5].text)
@@ -152,6 +149,9 @@ def _get_list(query_obj, date_obj):
             target_date_uploaded_epi_count = book_info["target_date_uploaded_epi_count"]
             target_date_last_epi = book_info["target_date_last_epi"]
             introduce_text = ILLEGAL_CHARACTERS_RE.sub('', book_info["introduce_text"])
+
+            if episode_limit and episode_limit < target_date_last_epi:
+                continue
 
             book_total_recommend_count_num = float(book_total_recommend_count)
             book_total_favorite_count_num = float(book_total_favorite_count)
