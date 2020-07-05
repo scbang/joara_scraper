@@ -45,6 +45,8 @@ def _get_book_info(book_home_link, date_obj):
     css_selector = config.CSS_SELECTOR["NORMAL"]
     book_info_element_list = soup.select(css_selector["BOOK_INFO"])
     date_format = "{cur_year}/{cur_month}/{cur_day}"
+    if len(soup.select(".t_cont_v")) == 0:
+        return None
     introduce_text = soup.select(".t_cont_v")[0].text.strip()
     if len(book_info_element_list) < 1:
         css_selector = config.CSS_SELECTOR["NOBLESS"]
@@ -141,6 +143,8 @@ def _get_list(query_obj, date_obj):
 
             book_code = dict(parse.parse_qsl(parse.urlsplit(book_home_link).query))["book_code"]
             book_info = _get_book_info(book_home_link, date_obj)
+            if not book_info:
+                continue
 
             book_total_recommend_count = book_info["book_total_recommend_count"]
             book_total_favorite_count = book_info["book_total_favorite_count"]
