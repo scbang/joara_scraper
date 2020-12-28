@@ -23,33 +23,33 @@ def _convert_to_float(num_string):
 
 def get_free_list(date_obj):
     print("무료 순위")
-    return [["무료 순위"]] + _get_list(config.FREE_QUERY, date_obj)
+    return [["무료 순위"]] + _get_list(config.joara.FREE_QUERY, date_obj)
 
 
 def get_lately_list(date_obj):
     print("신규 순위")
-    return [["신규 순위"]] + _get_list(config.LATELY_QUERY, date_obj)
+    return [["신규 순위"]] + _get_list(config.joara.LATELY_QUERY, date_obj)
 
 
 def _get_book_info(book_home_link, date_obj):
     first_epi_view_count = target_date_last_epi_view_count = target_date_last_epi = None
     target_date_uploaded_epi_count = 0
 
-    url = config.HOST + book_home_link
-    page = requests.get(url, cookies=config.COOKIES)
-    new_location = config.HOST + page.text.split("\"")[1]
+    url = config.joara.JOARA_HOST + book_home_link
+    page = requests.get(url, cookies=config.joara.COOKIES)
+    new_location = config.joara.JOARA_HOST + page.text.split("\"")[1]
 
-    page = requests.get(new_location, cookies=config.COOKIES)
+    page = requests.get(new_location, cookies=config.joara.COOKIES)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    css_selector = config.CSS_SELECTOR["NORMAL"]
+    css_selector = config.joara.CSS_SELECTOR["NORMAL"]
     book_info_element_list = soup.select(css_selector["BOOK_INFO"])
     date_format = "{cur_year}/{cur_month}/{cur_day}"
     if len(soup.select(".t_cont_v")) == 0:
         return None
     introduce_text = soup.select(".t_cont_v")[0].text.strip()
     if len(book_info_element_list) < 1:
-        css_selector = config.CSS_SELECTOR["NOBLESS"]
+        css_selector = config.joara.CSS_SELECTOR["NOBLESS"]
         book_info_element_list = soup.select(css_selector["BOOK_INFO"])[1].text.split("|")
         book_total_recommend_count = book_info_element_list[1].strip().split(" ")[1]
         book_total_favorite_count = book_info_element_list[2].strip().split(" ")[1]
@@ -99,7 +99,7 @@ def _get_book_info(book_home_link, date_obj):
 def _get_list(query_obj, date_obj):
     query = dict(query_obj["QUERY"])
     episode_limit = query_obj["EPISODE_LIMIT"]
-    headers = config.DATA_HEADERS
+    headers = config.joara.DATA_HEADERS
     book_list = [headers]
     print("|".join(headers))
 
@@ -108,7 +108,7 @@ def _get_list(query_obj, date_obj):
     for page_no in query_obj["PAGE_NO_LIST"]:
         query["page_no"] = page_no
         query.update(date_obj)
-        page = requests.get(config.BASE_PATH, params=query, cookies=config.COOKIES)
+        page = requests.get(config.joara.BASE_PATH, params=query, cookies=config.joara.COOKIES)
         page_text = page.text.replace("&#", "#")
         soup = BeautifulSoup(page_text, 'html.parser')
         tbl_list = soup.select(".tbl_list > tbody > tr")
