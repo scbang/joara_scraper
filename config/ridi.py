@@ -10,9 +10,19 @@ ROMANCE_HOME = f"{RIDIBOOKS_HOST}/romance/"
 CSS_SELECTOR = {
     "RECOMMENDATION": {
         "GET_LIST": re.compile("PortraitBookWrapper-todayRecommendationMargin$"),
-        "GET_TEXT": re.compile("RecommendationText$"),
     },
-
+    "TODAY_NEW": {
+        "GET_LIST": re.compile("PortraitBookWrapper-StyledBookItem$"),
+    },
+    "GET_BOOK_LINK": re.compile("StyledAnchor$"),
+    "BOOK_LINK": {
+        "TITLE": "info_title_wrap",
+        "AUTHOR_DETAIL_LINK": "author_detail_link",
+        "PUBLISHER_DETAIL_LINK": "publisher_detail_link",
+        "STAR_RATE_SCORE": "StarRate_Score",
+        "STAR_RATE_COUNT": "StarRate_ParticipantCount",
+        "KEYWORDS": "keyword",
+    },
 }
 
 
