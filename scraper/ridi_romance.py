@@ -137,7 +137,8 @@ def scrape_event(
 
 
 def scrape_romance_home():
-    print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}")
+    print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}"
+          f", 수집 페이지 링크 = {config.ridi.ROMANCE_HOME}")
 
     session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
 
