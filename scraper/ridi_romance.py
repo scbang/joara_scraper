@@ -11,9 +11,6 @@ import config
 from config import make_url
 from data_object.book import RidibooksBook
 
-N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS = 10
-BOOK_DETAILS = dict()
-
 
 def login(
         user_id: int or str,
@@ -173,20 +170,23 @@ def scrape_romance_home():
         for top_banner_event in top_banner_events:
             event_books[top_banner_event["id"]] = scrape_event(session_obj, top_banner_event)
 
-    book_item_lists = [None] * N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS
-    for n in range(N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS):
+    n_book_detail_scrape_worker_process = 10
+    book_details = dict()
+
+    book_item_lists = [None] * n_book_detail_scrape_worker_process
+    for n in range(n_book_detail_scrape_worker_process):
         book_item_lists[n] = list()
 
     n = 0
     for today_recommendation in today_recommendation_list:
-        book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(today_recommendation)
+        book_item_lists[n % n_book_detail_scrape_worker_process].append(today_recommendation)
         n = n + 1
     for today_new in today_new_list:
-        book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(today_new)
+        book_item_lists[n % n_book_detail_scrape_worker_process].append(today_new)
         n = n + 1
     for event_id, event_book_list in event_books.items():
         for event_book in event_book_list:
-            book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(event_book)
+            book_item_lists[n % n_book_detail_scrape_worker_process].append(event_book)
             n = n + 1
 
     scrape_processes = []
@@ -205,7 +205,7 @@ def scrape_romance_home():
         try:
             while 1:
                 scrape_result = scrape_result_queue.get(False)
-                BOOK_DETAILS[scrape_result[0]] = scrape_result[1]
+                book_details[scrape_result[0]] = scrape_result[1]
         except queue.Empty:
             pass
 
@@ -222,11 +222,11 @@ def scrape_romance_home():
 
     print("[오늘, 리디의 발견] 수집 결과")
     for i, today_recommendation in enumerate(today_recommendation_list):
-        print(f"{i+1}번째 책, {BOOK_DETAILS[today_recommendation['b_id']]}")
+        print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
 
     print("[오늘의 신간] 수집 결과")
     for i, today_new in enumerate(today_new_list):
-        print(f"{i+1}번째 책, {BOOK_DETAILS[today_new['b_id']]}")
+        print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
 
     if top_banner_events:
         print(f"최상단 배너 영역 발견 수집 결과. {len(top_banner_events)}개 이벤트 진행 중.")
@@ -234,4 +234,4 @@ def scrape_romance_home():
             print(f"{i+1}번째 이벤트, [{top_banner_event['title']}], 링크 = {make_url(top_banner_event['url'])}")
             event_book_list = event_books[top_banner_event["id"]]
             for nth, event_book in enumerate(event_book_list):
-                print(f"{nth+1}번째 책, {BOOK_DETAILS[event_book['b_id']]}")
+                print(f"{nth+1}번째 책, {book_details[event_book['b_id']]}")
