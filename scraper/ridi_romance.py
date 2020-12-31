@@ -137,7 +137,7 @@ def scrape_event(
 
 
 def scrape_romance_home():
-    print(f"리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}")
+    print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}")
 
     session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
 
@@ -159,14 +159,14 @@ def scrape_romance_home():
             today_recommendation_list = branch["items"]
 
     if today_recommendation_list:
-        print("[오늘, 리디의 발견] 영역 데이터 발견")
+        print("+++ [오늘, 리디의 발견] 영역 데이터 발견")
 
     if today_new_list:
-        print("[오늘의 신간] 영역 데이터 발견")
+        print("+++ [오늘의 신간] 영역 데이터 발견")
 
     event_books = dict()
     if top_banner_events:
-        print(f"최상단 배너 영역 데이터 발견. {len(top_banner_events)}개 이벤트 진행 중.")
+        print(f"+++ 최상단 배너 영역 데이터 발견. {len(top_banner_events)}개 이벤트 노출 중.")
         for top_banner_event in top_banner_events:
             event_books[top_banner_event["id"]] = scrape_event(session_obj, top_banner_event)
 
@@ -218,20 +218,22 @@ def scrape_romance_home():
         print(f"스크랩 워커({i}) 종료 대기")
         scrape_process.join()
 
-    print(f"스크랩 종료...{n}개의 책 페이지 데이터 수집 완료")
-
-    print("[오늘, 리디의 발견] 수집 결과")
+    print(f"+++ 스크랩 종료...{n}개의 책 페이지 데이터 수집 완료")
+    print("")
+    print("+++ [오늘, 리디의 발견] 수집 결과")
     for i, today_recommendation in enumerate(today_recommendation_list):
         print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
-
-    print("[오늘의 신간] 수집 결과")
+    print("")
+    print("+++ [오늘의 신간] 수집 결과")
     for i, today_new in enumerate(today_new_list):
         print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
-
+    print("")
     if top_banner_events:
-        print(f"최상단 배너 영역 발견 수집 결과. {len(top_banner_events)}개 이벤트 진행 중.")
+        print(f"+++ 최상단 배너 영역 발견 수집 결과. {len(top_banner_events)}개 이벤트 노출 중.")
         for i, top_banner_event in enumerate(top_banner_events):
-            print(f"{i+1}번째 이벤트, [{top_banner_event['title']}], 링크 = {make_url(top_banner_event['url'])}")
             event_book_list = event_books[top_banner_event["id"]]
+            print(f"--- {i+1}번째 이벤트, [{top_banner_event['title']}]"
+                  f", 링크 = {make_url(top_banner_event['url'])}"
+                  f", {len(event_book_list)}개의 책 페이지 발견")
             for nth, event_book in enumerate(event_book_list):
                 print(f"{nth+1}번째 책, {book_details[event_book['b_id']]}")
