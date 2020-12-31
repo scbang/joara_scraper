@@ -221,11 +221,11 @@ def scrape_romance_home():
 
     print(f"+++ 스크랩 종료...{n}개의 책 페이지 데이터 수집 완료")
     print("")
-    print("+++ [오늘, 리디의 발견] 수집 결과")
+    print(f"+++ [오늘, 리디의 발견] 수집 결과, {len(today_recommendation_list)}개의 책 페이지 발견")
     for i, today_recommendation in enumerate(today_recommendation_list):
         print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
     print("")
-    print("+++ [오늘의 신간] 수집 결과")
+    print(f"+++ [오늘의 신간] 수집 결과, {len(today_new_list)}개의 책 페이지 발견")
     for i, today_new in enumerate(today_new_list):
         print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
     print("")
