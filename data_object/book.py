@@ -1,7 +1,5 @@
 from enum import Enum
 
-from config import RIDIBOOKS_HOST
-
 
 class Platform(Enum):
     JOARA = "조아라"
@@ -31,7 +29,7 @@ class RidibooksBook(Book):
     def __init__(self, link, star_rate_participants_count, start_rate, title, authors, publishers, keywords):
         book_id = link.split("/")[-1]
         super().__init__(Platform.RIDIBOOKS, book_id, title, authors, publishers)
-        self.link = f"{RIDIBOOKS_HOST}{link}"
+        self.link = link
         self.star_rate_participants_count = star_rate_participants_count
         self.start_rate = start_rate
         self.keywords = keywords

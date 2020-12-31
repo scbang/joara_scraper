@@ -1,15 +1,25 @@
-import re
+import json
+import queue
+import time
 from datetime import datetime
+from multiprocessing import Process, Queue
 
 import requests
 from bs4 import BeautifulSoup
 
 import config
+from config import make_url
 from data_object.book import RidibooksBook
 
+N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS = 10
+BOOK_DETAILS = dict()
 
-def login(user_id, user_password):
-    ridi_session = requests.Session()
+
+def login(
+        user_id: int or str,
+        user_password: str,
+) -> requests.Session:
+    session_obj = requests.Session()
 
     headers = {
         # 'accept': 'application/json, text/plain, */*',
@@ -32,15 +42,21 @@ def login(user_id, user_password):
         'device_id': '',
         'msg': '',
     }
-    login_request = ridi_session.prepare_request(
+    login_request = session_obj.prepare_request(
         requests.Request('POST', config.ridi.LOGIN_URL, headers=headers, data=payload)
     )
 
-    call_with_response_check("리디북스 로그인", 200, ridi_session.send, login_request)
-    return ridi_session
+    call_with_response_check("리디북스 로그인", 200, session_obj.send, login_request)
+    return session_obj
 
 
-def call_with_response_check(request_description, expected_status_code, func, *args, **kwargs):
+def call_with_response_check(
+        request_description: str,
+        expected_status_code: int,
+        func: callable,
+        *args,
+        **kwargs
+) -> requests.Response:
     response = func(*args, **kwargs)
     if response.status_code != expected_status_code:
         print(f"{request_description} 요청 실패")
@@ -49,77 +65,173 @@ def call_with_response_check(request_description, expected_status_code, func, *a
     return response
 
 
-def get_book_detail(session_obj, book_item):
-    book_link_css_selector = config.ridi.CSS_SELECTOR["BOOK_LINK"]
+def get_book_detail(
+        session_obj: requests.Session,
+        book_info: dict,
+) -> RidibooksBook:
+    book_link = config.make_book_url(book_info['b_id'])
 
-    get_book_link_selector = config.ridi.CSS_SELECTOR["GET_BOOK_LINK"]
-    title_selector = book_link_css_selector["TITLE"]
-    author_detail_link_selector = book_link_css_selector["AUTHOR_DETAIL_LINK"]
-    publisher_detail_link_selector = book_link_css_selector["PUBLISHER_DETAIL_LINK"]
-    star_rate_score_selector = book_link_css_selector["STAR_RATE_SCORE"]
-    star_rate_count_selector = book_link_css_selector["STAR_RATE_COUNT"]
-    keywords_selector = book_link_css_selector["KEYWORDS"]
-
-    book_link = book_item.find(name="a", class_=get_book_link_selector).attrs['href']
-
-    book_link_response = call_with_response_check(
-        f"{book_link} 읽기", 200, session_obj.get, f"{config.ridi.RIDIBOOKS_HOST}{book_link}"
-    )
-    # print(book_link_response)
+    book_link_response = call_with_response_check(f"{book_link} 읽기", 200, session_obj.get, book_link)
     book_detail_soup = BeautifulSoup(book_link_response.text, 'html.parser')
 
-    star_rate_score_span = book_detail_soup.find(name="span", class_=star_rate_score_selector)
-    star_rate_count_span = book_detail_soup.find(name="span", class_=star_rate_count_selector)
+    book_link_find_args = config.ridi.SOUP_FIND_ARGS["BOOK_DETAIL_PAGE"]
 
-    title = book_detail_soup.find(name="h3", class_=title_selector).text
-    author_name = book_detail_soup.find(name="a", class_=author_detail_link_selector).text
-    publisher_name = book_detail_soup.find(name="a", class_=publisher_detail_link_selector).text
-    star_rate_score = star_rate_score_span.text if star_rate_score_span else "-"
-    star_rate_count = star_rate_count_span.text if star_rate_count_span else "0명"
-
-    keywords = [
-        keywords_span.text
-        for keywords_span in book_detail_soup.find_all(name="span", class_=keywords_selector)
-    ]
+    publisher_detail_link_selector = book_link_find_args["PUBLISHER_DETAIL_LINK"]
+    keywords_selector = book_link_find_args["KEYWORDS"]
 
     return RidibooksBook(
-        book_link,
-        star_rate_count,
-        star_rate_score,
-        title,
-        [author_name, ],
-        [publisher_name, ],
-        keywords
+        link=book_link,
+        star_rate_participants_count=book_info["rating"]["buyer_rating_count"],
+        start_rate=book_info["rating"]["buyer_rating_score"],
+        title=book_info["title"],
+        authors=[author['name'] for author in book_info['authors']],
+        publishers=[book_detail_soup.find(**publisher_detail_link_selector).text, ],
+        keywords=[keywords_span.text for keywords_span in book_detail_soup.find_all(**keywords_selector)],
     )
 
 
-def get_today_recommendation(session_obj):
+def scrape_worker(
+        worker_id: int,
+        book_info_list: list,
+        scrape_result: Queue,
+):
+    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+        for book_info in book_info_list:
+            print(f"스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중")
+            scrape_result.put((book_info["b_id"], get_book_detail(session_obj, book_info)))
+    print(f"스크랩 워커({worker_id}) 수집 완료")
+
+
+def scrape_event(
+        session_obj: requests.Session,
+        event_info: dict,
+) -> list:
+    event_url = config.make_url(event_info['url'])
+    event_page = call_with_response_check(f"이벤트[{event_info['title']}] 페이지 읽기", 200, session_obj.get, event_url)
+    event_detail_soup = BeautifulSoup(event_page.text, 'html.parser')
+
+    event_link_find_args = config.ridi.SOUP_FIND_ARGS["EVENT_PAGE"]
+    get_book_detail_find_args = event_link_find_args["GET_BOOK_DETAIL"]
+
+    event_book_items = []
+
+    for i, event_book in enumerate(event_detail_soup.find_all(**event_link_find_args["GET_BOOK_LIST"])):
+        title_html = event_book.find(**get_book_detail_find_args["TITLE_LINK"])
+        title_link = title_html['href']
+
+        event_book_item = {
+            "b_id": title_link.split('/')[-1],
+            "title": title_html.text.strip(),
+            "rating": {
+                "buyer_rating_score":
+                    event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]).text.split("점")[0],
+                "buyer_rating_count":
+                    event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]).text.split("명")[0],
+            },
+            "authors": [
+                {
+                    "name": event_book.find(**get_book_detail_find_args["AUTHOR_DETAIL_LINK"]).text,
+                }
+            ],
+        }
+        event_book_items.append(event_book_item)
+
+    return event_book_items
+
+
+def scrape_romance_home():
     print(f"리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}")
+
+    session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
 
     romance_response = call_with_response_check("로맨스 페이지 읽기", 200, session_obj.get, config.ridi.ROMANCE_HOME)
     soup = BeautifulSoup(romance_response.text, 'html.parser')
 
-    recommendation_list_selector = config.ridi.CSS_SELECTOR["RECOMMENDATION"]["GET_LIST"]
+    __NEXT_DATA__ = json.loads(soup.find(**config.ridi.SOUP_FIND_ARGS["GET_NEXT_DATA"]).text)
 
-    recommendation_list = soup.find_all(name="li", class_=recommendation_list_selector)
-    print("오리발 데이터 수집")
-    for i, recommendation_item in enumerate(recommendation_list):
-        print(f"{i+1}번째, {get_book_detail(session_obj, recommendation_item)}")
+    branches = __NEXT_DATA__["props"]["initialProps"]["pageProps"]["branches"]
+    top_banner_events = []
+    today_new_list = []
+    today_recommendation_list = []
+    for branch in branches:
+        if branch["slug"] == "home-romance-event-banner-top":
+            top_banner_events = branch["items"][0:min(4, len(branch["items"]))]
+        elif branch["slug"] == "home-romance-today-new-book":
+            today_new_list = branch["items"]
+        elif branch["slug"] == "home-romance-today-recommendation":
+            today_recommendation_list = branch["items"]
 
-    print("오늘의 신간 데이터 수집")
-    section_list = soup.find_all(name="section", class_=re.compile("SectionWrapper$"))
-    today_new_section = None
-    for i, section_item in enumerate(section_list):
-        h2 = section_item.find(name="h2")
-        a = h2.find(name="a")
-        if a and a.text.startswith("오늘의 신간"):
-            today_new_section = section_item
+    if today_recommendation_list:
+        print("[오늘, 리디의 발견] 영역 데이터 발견")
 
-    if not today_new_section:
-        print("오늘의 신간 영역 추출 실패")
-        return
+    if today_new_list:
+        print("[오늘의 신간] 영역 데이터 발견")
 
-    today_new_list_selector = config.ridi.CSS_SELECTOR["TODAY_NEW"]["GET_LIST"]
-    today_new_list = today_new_section.find_all(name="li", class_=today_new_list_selector)
-    for i, today_new_item in enumerate(today_new_list):
-        print(f"{i+1}번째, {get_book_detail(session_obj, today_new_item)}")
+    event_books = dict()
+    if top_banner_events:
+        print(f"최상단 배너 영역 데이터 발견. {len(top_banner_events)}개 이벤트 진행 중.")
+        for top_banner_event in top_banner_events:
+            event_books[top_banner_event["id"]] = scrape_event(session_obj, top_banner_event)
+
+    book_item_lists = [None] * N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS
+    for n in range(N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS):
+        book_item_lists[n] = list()
+
+    n = 0
+    for today_recommendation in today_recommendation_list:
+        book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(today_recommendation)
+        n = n + 1
+    for today_new in today_new_list:
+        book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(today_new)
+        n = n + 1
+    for event_id, event_book_list in event_books.items():
+        for event_book in event_book_list:
+            book_item_lists[n % N_BOOK_DETAIL_SCRAPE_WORKER_PROCESS].append(event_book)
+            n = n + 1
+
+    scrape_processes = []
+
+    scrape_result_queue = Queue()
+
+    for i, book_item_list in enumerate(book_item_lists):
+        print(f"스크랩 워커({i}) 시작...")
+        # print(f"{[book_item['b_id'] for book_item in book_item_list]}")
+        process = Process(target=scrape_worker, args=(i, book_item_list, scrape_result_queue,))
+        process.start()
+        scrape_processes.append(process)
+
+    alive_procs = list(scrape_processes)
+    while alive_procs:
+        try:
+            while 1:
+                scrape_result = scrape_result_queue.get(False)
+                BOOK_DETAILS[scrape_result[0]] = scrape_result[1]
+        except queue.Empty:
+            pass
+
+        time.sleep(0.5)  # Give tasks a chance to put more data in
+        if not scrape_result_queue.empty():
+            continue
+        alive_procs = [p for p in alive_procs if p.is_alive()]
+
+    for i, scrape_process in enumerate(scrape_processes):
+        print(f"스크랩 워커({i}) 종료 대기")
+        scrape_process.join()
+
+    print(f"스크랩 종료...{n}개의 책 페이지 데이터 수집 완료")
+
+    print("[오늘, 리디의 발견] 수집 결과")
+    for i, today_recommendation in enumerate(today_recommendation_list):
+        print(f"{i+1}번째 책, {BOOK_DETAILS[today_recommendation['b_id']]}")
+
+    print("[오늘의 신간] 수집 결과")
+    for i, today_new in enumerate(today_new_list):
+        print(f"{i+1}번째 책, {BOOK_DETAILS[today_new['b_id']]}")
+
+    if top_banner_events:
+        print(f"최상단 배너 영역 발견 수집 결과. {len(top_banner_events)}개 이벤트 진행 중.")
+        for i, top_banner_event in enumerate(top_banner_events):
+            print(f"{i+1}번째 이벤트, [{top_banner_event['title']}], 링크 = {make_url(top_banner_event['url'])}")
+            event_book_list = event_books[top_banner_event["id"]]
+            for nth, event_book in enumerate(event_book_list):
+                print(f"{nth+1}번째 책, {BOOK_DETAILS[event_book['b_id']]}")
