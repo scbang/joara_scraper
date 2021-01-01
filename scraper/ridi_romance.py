@@ -3,6 +3,7 @@ import queue
 import time
 from datetime import datetime
 from multiprocessing import Process, Queue
+from typing import Dict, List, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -64,7 +65,7 @@ def call_with_response_check(
 
 def get_book_detail(
         session_obj: requests.Session,
-        book_info: dict,
+        book_info: Dict,
 ) -> RidibooksBook:
     book_link = config.make_book_url(book_info['b_id'])
 
@@ -82,14 +83,14 @@ def get_book_detail(
         start_rate=book_info["rating"]["buyer_rating_score"],
         title=book_info["title"],
         authors=[author['name'] for author in book_info['authors']],
-        publishers=[book_detail_soup.find(**publisher_detail_link_selector).text, ],
+        publisher=book_detail_soup.find(**publisher_detail_link_selector).text,
         keywords=[keywords_span.text for keywords_span in book_detail_soup.find_all(**keywords_selector)],
     )
 
 
 def scrape_worker(
         worker_id: int,
-        book_info_list: list,
+        book_info_list: List,
         scrape_result: Queue,
 ):
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
@@ -101,8 +102,8 @@ def scrape_worker(
 
 def scrape_event(
         session_obj: requests.Session,
-        event_info: dict,
-) -> list:
+        event_info: Dict,
+) -> List:
     event_url = config.make_url(event_info['url'])
     event_page = call_with_response_check(f"이벤트[{event_info['title']}] 페이지 읽기", 200, session_obj.get, event_url)
     event_detail_soup = BeautifulSoup(event_page.text, 'html.parser')
@@ -121,9 +122,12 @@ def scrape_event(
             "title": title_html.text.strip(),
             "rating": {
                 "buyer_rating_score":
-                    event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]).text.split("점")[0],
+                    event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]).text.split("점")[0]
+                    if event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]) else "0"
+                ,
                 "buyer_rating_count":
-                    event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]).text.split("명")[0],
+                    event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]).text.split("명")[0]
+                    if event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]) else "0",
             },
             "authors": [
                 {
@@ -136,18 +140,12 @@ def scrape_event(
     return event_book_items
 
 
-def scrape_romance_home():
-    print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}"
-          f", 수집 페이지 링크 = {config.ridi.ROMANCE_HOME}")
+def find_book_infos_in_next_data(
+        session_obj: requests.Session,
+        next_data: Dict,
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    branches = next_data["props"]["initialProps"]["pageProps"]["branches"]
 
-    session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
-
-    romance_response = call_with_response_check("로맨스 페이지 읽기", 200, session_obj.get, config.ridi.ROMANCE_HOME)
-    soup = BeautifulSoup(romance_response.text, 'html.parser')
-
-    __NEXT_DATA__ = json.loads(soup.find(**config.ridi.SOUP_FIND_ARGS["GET_NEXT_DATA"]).text)
-
-    branches = __NEXT_DATA__["props"]["initialProps"]["pageProps"]["branches"]
     top_banner_events = []
     today_new_list = []
     today_recommendation_list = []
@@ -165,33 +163,48 @@ def scrape_romance_home():
     if today_new_list:
         print("+++ [오늘의 신간] 영역 데이터 발견")
 
-    event_books = dict()
+    event_books = list()
     if top_banner_events:
         print(f"+++ 최상단 배너 영역 데이터 발견. {len(top_banner_events)}개 이벤트 노출 중.")
         for top_banner_event in top_banner_events:
-            event_books[top_banner_event["id"]] = scrape_event(session_obj, top_banner_event)
+            event_books.append({
+                "book_items": scrape_event(session_obj, top_banner_event),
+                "event_info": top_banner_event,
+            })
 
-    n_book_detail_scrape_worker_process = 10
-    book_details = dict()
+    return today_recommendation_list, today_new_list, event_books
 
-    book_item_lists = [None] * n_book_detail_scrape_worker_process
-    for n in range(n_book_detail_scrape_worker_process):
-        book_item_lists[n] = list()
+
+def make_n_array(
+        today_recommendation_list: List[Dict],
+        today_new_list: List[Dict],
+        event_books: List[Dict],
+        n_book_detail_scrape_worker_process: int,
+) -> List[List[Dict]]:
+    book_item_lists = [[] for i in range(n_book_detail_scrape_worker_process)]
 
     n = 0
     for today_recommendation in today_recommendation_list:
         book_item_lists[n % n_book_detail_scrape_worker_process].append(today_recommendation)
-        n = n + 1
+        # print([len(book_item_list) for book_item_list in book_item_lists])
+        n += 1
     for today_new in today_new_list:
         book_item_lists[n % n_book_detail_scrape_worker_process].append(today_new)
-        n = n + 1
-    for event_id, event_book_list in event_books.items():
-        for event_book in event_book_list:
-            book_item_lists[n % n_book_detail_scrape_worker_process].append(event_book)
-            n = n + 1
+        n += 1
+    for event_book in event_books:
+        for book_item in event_book["book_items"]:
+            book_item_lists[n % n_book_detail_scrape_worker_process].append(book_item)
+            n += 1
+
+    return book_item_lists
+
+
+def get_book_details(
+        book_item_lists: List[List[Dict]],
+) -> Dict:
+    book_details = dict()
 
     scrape_processes = []
-
     scrape_result_queue = Queue()
 
     for i, book_item_list in enumerate(book_item_lists):
@@ -219,22 +232,61 @@ def scrape_romance_home():
         print(f"스크랩 워커({i}) 종료 대기")
         scrape_process.join()
 
-    print(f"+++ 스크랩 종료...{n}개의 책 페이지 데이터 수집 완료")
-    print("")
-    print(f"+++ [오늘, 리디의 발견] 수집 결과, {len(today_recommendation_list)}개의 책 페이지 발견")
-    for i, today_recommendation in enumerate(today_recommendation_list):
-        print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
-    print("")
-    print(f"+++ [오늘의 신간] 수집 결과, {len(today_new_list)}개의 책 페이지 발견")
-    for i, today_new in enumerate(today_new_list):
-        print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
-    print("")
-    if top_banner_events:
-        print(f"+++ 최상단 배너 영역 발견 수집 결과. {len(top_banner_events)}개 이벤트 노출 중.")
-        for i, top_banner_event in enumerate(top_banner_events):
-            event_book_list = event_books[top_banner_event["id"]]
+    print(f"+++ 스크랩 종료...{len(book_details)}개의 책 페이지 데이터 수집 완료")
+
+    return book_details
+
+
+def print_scrape_result(
+        book_details: dict,
+        today_recommendation_list: list,
+        today_new_list: list,
+        event_books: list,
+) -> None:
+    if today_recommendation_list:
+        print("")
+        print(f"+++ [오늘, 리디의 발견] 수집 결과, {len(today_recommendation_list)}개의 책 페이지 발견")
+        for i, today_recommendation in enumerate(today_recommendation_list):
+            print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
+
+    if today_new_list:
+        print("")
+        print(f"+++ [오늘의 신간] 수집 결과, {len(today_new_list)}개의 책 페이지 발견")
+        for i, today_new in enumerate(today_new_list):
+            print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
+
+    if event_books:
+        print("")
+        print(f"+++ 최상단 배너 영역 발견 수집 결과. {len(event_books)}개 이벤트 노출 중.")
+        for i, item in enumerate(event_books):
+            top_banner_event = item["event_info"]
+            event_book_list = item["book_items"]
             print(f"--- {i+1}번째 이벤트, [{top_banner_event['title']}]"
                   f", 링크 = {make_url(top_banner_event['url'])}"
                   f", {len(event_book_list)}개의 책 페이지 발견")
             for nth, event_book in enumerate(event_book_list):
                 print(f"{nth+1}번째 책, {book_details[event_book['b_id']]}")
+
+
+def scrape_romance_home():
+    print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}"
+          f", 수집 페이지 링크 = {config.ridi.ROMANCE_HOME}")
+
+    session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
+    romance_response = call_with_response_check("로맨스 페이지 읽기", 200, session_obj.get, config.ridi.ROMANCE_HOME)
+
+    today_recommendation_list, today_new_list, event_books = find_book_infos_in_next_data(
+        session_obj,
+        json.loads(
+            BeautifulSoup(romance_response.text, 'html.parser')
+                .find(**config.ridi.SOUP_FIND_ARGS["GET_NEXT_DATA"])
+                .text
+        )
+    )
+
+    print_scrape_result(
+        get_book_details(make_n_array(today_recommendation_list, today_new_list, event_books, 10)),
+        today_recommendation_list,
+        today_new_list,
+        event_books,
+    )
