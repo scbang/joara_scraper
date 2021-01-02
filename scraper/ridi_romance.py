@@ -78,14 +78,15 @@ def get_book_detail(
     book_link_find_args = config.ridi.SOUP_FIND_ARGS["BOOK_DETAIL_PAGE"]
 
     need_author_detail = "need_author_detail" in book_info and book_info["need_author_detail"]
+    book_detail = get_book_detail_with_api(session_obj, book_info['b_id'], need_author_detail)
     if need_author_detail or not "authors" in book_info:
-        book_info["authors"] = get_book_detail_with_api(session_obj, book_info['b_id'], need_author_detail)["authors"]
+        book_info["authors"] = book_detail["authors"]
 
     return RidibooksBook(
         link=book_link,
         star_rate_participants_count=book_info["rating"]["buyer_rating_count"],
         start_rate=book_info["rating"]["buyer_rating_score"],
-        title=book_info["title"],
+        title=determine_book_title(book_detail),
         authors=[RidibooksAuthor(**author) for author in book_info['authors']],
         publisher=book_detail_soup.find(**book_link_find_args["PUBLISHER_DETAIL_LINK"]).text,
         keywords=[keywords_span.text for keywords_span in book_detail_soup.find_all(**book_link_find_args["KEYWORDS"])],
@@ -99,9 +100,11 @@ def scrape_worker(
 ) -> None:
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
         total = len(book_info_list)
-        for i, book_info in enumerate(book_info_list):
+        for i, book_info_tuple in enumerate(book_info_list):
+            section = book_info_tuple[0]
+            book_info = book_info_tuple[1]
             print(f"책 스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중. ({i+1}/{total})")
-            scrape_result.put((book_info["b_id"], get_book_detail(session_obj, book_info)))
+            scrape_result.put((section, book_info["b_id"], get_book_detail(session_obj, book_info)))
     print(f"책 스크랩 워커({worker_id}) 수집 완료")
 
 
@@ -187,16 +190,16 @@ def make_n_array(
     n = 0
     for book_item in today_recommendation_list:
         book_item["need_author_detail"] = True
-        book_item_lists[n % n_scrape_worker_process].append(book_item)
+        book_item_lists[n % n_scrape_worker_process].append(("today_recommendation_list", book_item))
         n += 1
     for book_item in today_new_list:
         book_item["need_author_detail"] = False
-        book_item_lists[n % n_scrape_worker_process].append(book_item)
+        book_item_lists[n % n_scrape_worker_process].append(("today_new_list", book_item))
         n += 1
     for event_book in event_books:
         for book_item in event_book["book_items"]:
             book_item["need_author_detail"] = False
-            book_item_lists[n % n_scrape_worker_process].append(book_item)
+            book_item_lists[n % n_scrape_worker_process].append(("event_books", book_item))
             n += 1
 
     return book_item_lists
@@ -205,7 +208,11 @@ def make_n_array(
 def get_book_details(
         book_item_lists: List[List[Dict]],
 ) -> Dict:
-    book_details = dict()
+    book_details = {
+        "today_recommendation_list": dict(),
+        "today_new_list": dict(),
+        "event_books": dict(),
+    }
 
     scrape_processes = []
     scrape_result_queue = Queue()
@@ -222,7 +229,7 @@ def get_book_details(
         try:
             while 1:
                 scrape_result = scrape_result_queue.get(False)
-                book_details[scrape_result[0]] = scrape_result[1]
+                book_details[scrape_result[0]][scrape_result[1]] = scrape_result[2]
         except queue.Empty:
             pass
 
@@ -251,13 +258,13 @@ def print_scrape_result(
         print("")
         print(f"+++ [오늘, 리디의 발견] 수집 결과, {len(today_recommendation_list)}개의 책 페이지 발견")
         for i, today_recommendation in enumerate(today_recommendation_list):
-            print(f"{i+1}번째 책, {book_details[today_recommendation['b_id']]}")
+            print(f"{i+1}번째 책, {book_details['today_recommendation_list'][today_recommendation['b_id']]}")
 
     if today_new_list:
         print("")
         print(f"+++ [오늘의 신간] 수집 결과, {len(today_new_list)}개의 책 페이지 발견")
         for i, today_new in enumerate(today_new_list):
-            print(f"{i+1}번째 책, {book_details[today_new['b_id']]}")
+            print(f"{i+1}번째 책, {book_details['today_new_list'][today_new['b_id']]}")
 
     if event_books:
         print("")
@@ -269,7 +276,7 @@ def print_scrape_result(
                   f", 링크 = {make_url(top_banner_event['url'])}"
                   f", {len(event_book_list)}개의 책 페이지 발견")
             for nth, event_book in enumerate(event_book_list):
-                print(f"{nth+1}번째 책, {book_details[event_book['b_id']]}")
+                print(f"{nth+1}번째 책, {book_details['event_books'][event_book['b_id']]}")
 
     print(f"출판사 {len(publishers)}개 수집됨. {list(publishers)}")
     for publisher_name, publisher_obj in publishers.items():
@@ -297,7 +304,6 @@ def get_author_recent_published_detail(
 
     get_book_detail_find_args = author_detail_find_args["GET_BOOK_DETAIL"]
 
-    # author_detail_find_args[]
     author_books = author_detail_soup.find_all(name="div", class_="book_macro_landscape")
     last_published_book_detail = {}
     for author_book in author_books:
@@ -330,6 +336,10 @@ def get_author_recent_published_detail(
     return last_published_book_detail
 
 
+def determine_book_title(book_detail):
+    return book_detail["series"]["property"]["title"] if "series" in book_detail else book_detail["title"]["main"]
+
+
 def get_book_detail_with_api(
         session_obj: requests.Session,
         b_id: str,
@@ -346,7 +356,7 @@ def get_book_detail_with_api(
             author["recent_published_book"] = get_author_recent_published_detail(
                 session_obj,
                 author["id"],
-                book_detail["series"]["property"]["title"] if "series" in book_detail else book_detail["title"]["main"],
+                determine_book_title(book_detail),
             )
     return book_detail
 
@@ -413,7 +423,7 @@ def get_publisher_detail(
             break
 
         current_head_result_index += config.N_SEARCH_RESULT_PER_PAGE
-        headers["start"] = str(current_head_result_index)
+        payload["start"] = str(current_head_result_index)
         search_result = call_with_response_check(
             f"[{publisher}] 검색",
             200,
@@ -485,12 +495,17 @@ def get_publishers_from_book_ids(
         book_details: Dict,
         book_id_list: List[str],
 ) -> Dict:
-    n_scrape_worker_process = config.N_SCRAPE_WORKER
+    all_book_detail = dict()
+    for section, book_detail_dict in book_details.items():
+        for book_id, book_detail in book_detail_dict.items():
+            all_book_detail[book_id] = book_detail
 
     publishers = {
-        book_details[book_id].publisher
+        all_book_detail[book_id].publisher
         for book_id in book_id_list
     }
+
+    n_scrape_worker_process = config.N_SCRAPE_WORKER
 
     publisher_lists = [[] for i in range(n_scrape_worker_process)]
 
@@ -534,4 +549,4 @@ def scrape_romance_home():
 
 def test():
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
-        print(get_author_recent_published_detail(session_obj, 2317, "블랙 스톰(Black Storm)"))
+        print(get_publisher_detail(session_obj, "동아"))

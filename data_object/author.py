@@ -16,7 +16,8 @@ class RidibooksAuthor(object):
 
     def __str__(self):
         last_published_book_desc = \
-            f"(이전 출간작 별점={self.recent_published_book['rating']['buyer_rating_score']}점 " \
+            f"(이전 출간작={self.recent_published_book['title']}[{self.recent_published_book['link']}] " \
+            f"별점={self.recent_published_book['rating']['buyer_rating_score']}점 " \
             f"{self.recent_published_book['rating']['buyer_rating_count']}명)" \
                 if self.recent_published_book else ""
         return f"{self.name}(ID={self.id}){last_published_book_desc}"
