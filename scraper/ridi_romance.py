@@ -15,6 +15,9 @@ from data_object.author import RidibooksAuthor
 from data_object.book import RidibooksBook
 from data_object.publisher import Publisher
 
+ACCOUNT_ID = None
+ACCOUNT_PASSWORD = None
+
 
 def login(
         user_id: int or str,
@@ -98,7 +101,7 @@ def scrape_worker(
         book_info_list: List,
         scrape_result: Queue,
 ) -> None:
-    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+    with login(ACCOUNT_ID, ACCOUNT_PASSWORD) as session_obj:
         total = len(book_info_list)
         for i, book_info_tuple in enumerate(book_info_list):
             section = book_info_tuple[0]
@@ -446,7 +449,7 @@ def publisher_scrape_worker(
         publishers: List[str],
         scrape_result: Queue,
 ) -> None:
-    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+    with login(ACCOUNT_ID, ACCOUNT_PASSWORD) as session_obj:
         total = len(publishers)
         for i, publisher in enumerate(publishers):
             print(f"출판사 정보 스크랩 워커({worker_id}) [{publisher}] 수집 중. ({i+1}/{total})")
@@ -515,11 +518,17 @@ def get_publishers_from_book_ids(
     return get_publisher_details(publisher_lists)
 
 
-def scrape_romance_home():
+def scrape_romance_home(account_id, account_password):
+    global ACCOUNT_ID
+    global ACCOUNT_PASSWORD
+
+    ACCOUNT_ID = account_id
+    ACCOUNT_PASSWORD = account_password
+
     print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}"
           f", 수집 페이지 링크 = {config.ridi.ROMANCE_HOME}")
 
-    session_obj = login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD)
+    session_obj = login(ACCOUNT_ID, ACCOUNT_PASSWORD)
     romance_response = call_with_response_check("로맨스 페이지 읽기", 200, session_obj.get, config.ridi.ROMANCE_HOME)
 
     today_recommendation_list, today_new_list, event_books = find_book_infos_in_next_data(
@@ -547,6 +556,12 @@ def scrape_romance_home():
     )
 
 
-def test():
-    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+def test(account_id, account_password):
+    global ACCOUNT_ID
+    global ACCOUNT_PASSWORD
+
+    ACCOUNT_ID = account_id
+    ACCOUNT_PASSWORD = account_password
+
+    with login(ACCOUNT_ID, ACCOUNT_PASSWORD) as session_obj:
         print(get_publisher_detail(session_obj, "동아"))
