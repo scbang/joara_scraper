@@ -1,16 +1,18 @@
 import json
 import queue
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from multiprocessing import Process, Queue
 from typing import Dict, List, Tuple
 
 import requests
 from bs4 import BeautifulSoup
+from dateutil.parser import parse
 
 import config
 from config import make_url
 from data_object.book import RidibooksBook
+from data_object.publisher import Publisher
 
 
 def login(
@@ -94,10 +96,11 @@ def scrape_worker(
         scrape_result: Queue,
 ):
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
-        for book_info in book_info_list:
-            print(f"스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중")
+        total = len(book_info_list)
+        for i, book_info in enumerate(book_info_list):
+            print(f"책 스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중. ({i+1}/{total})")
             scrape_result.put((book_info["b_id"], get_book_detail(session_obj, book_info)))
-    print(f"스크랩 워커({worker_id}) 수집 완료")
+    print(f"책 스크랩 워커({worker_id}) 수집 완료")
 
 
 def scrape_event(
@@ -179,21 +182,20 @@ def make_n_array(
         today_recommendation_list: List[Dict],
         today_new_list: List[Dict],
         event_books: List[Dict],
-        n_book_detail_scrape_worker_process: int,
 ) -> List[List[Dict]]:
-    book_item_lists = [[] for i in range(n_book_detail_scrape_worker_process)]
+    n_scrape_worker_process = config.N_SCRAPE_WORKER
+    book_item_lists = [[] for i in range(n_scrape_worker_process)]
 
     n = 0
     for today_recommendation in today_recommendation_list:
-        book_item_lists[n % n_book_detail_scrape_worker_process].append(today_recommendation)
-        # print([len(book_item_list) for book_item_list in book_item_lists])
+        book_item_lists[n % n_scrape_worker_process].append(today_recommendation)
         n += 1
     for today_new in today_new_list:
-        book_item_lists[n % n_book_detail_scrape_worker_process].append(today_new)
+        book_item_lists[n % n_scrape_worker_process].append(today_new)
         n += 1
     for event_book in event_books:
         for book_item in event_book["book_items"]:
-            book_item_lists[n % n_book_detail_scrape_worker_process].append(book_item)
+            book_item_lists[n % n_scrape_worker_process].append(book_item)
             n += 1
 
     return book_item_lists
@@ -208,7 +210,7 @@ def get_book_details(
     scrape_result_queue = Queue()
 
     for i, book_item_list in enumerate(book_item_lists):
-        print(f"스크랩 워커({i}) 시작...")
+        print(f"책 스크랩 워커({i}) 시작...")
         # print(f"{[book_item['b_id'] for book_item in book_item_list]}")
         process = Process(target=scrape_worker, args=(i, book_item_list, scrape_result_queue,))
         process.start()
@@ -229,19 +231,20 @@ def get_book_details(
         alive_procs = [p for p in alive_procs if p.is_alive()]
 
     for i, scrape_process in enumerate(scrape_processes):
-        print(f"스크랩 워커({i}) 종료 대기")
+        print(f"책 스크랩 워커({i}) 종료 대기")
         scrape_process.join()
 
-    print(f"+++ 스크랩 종료...{len(book_details)}개의 책 페이지 데이터 수집 완료")
+    print(f"+++ 책 스크랩 종료...{len(book_details)}개의 책 페이지 데이터 수집 완료")
 
     return book_details
 
 
 def print_scrape_result(
-        book_details: dict,
-        today_recommendation_list: list,
-        today_new_list: list,
-        event_books: list,
+        book_details: Dict,
+        today_recommendation_list: List,
+        today_new_list: List,
+        event_books: List,
+        publishers: Dict,
 ) -> None:
     if today_recommendation_list:
         print("")
@@ -267,6 +270,174 @@ def print_scrape_result(
             for nth, event_book in enumerate(event_book_list):
                 print(f"{nth+1}번째 책, {book_details[event_book['b_id']]}")
 
+    print(f"출판사 {len(publishers)}개 수집됨. {list(publishers)}")
+    for publisher_name, publisher_obj in publishers.items():
+        print(f"[{publisher_name}]"
+              f", {publisher_obj['publisher']}"
+              f", 최근 30일간 출간 종수: {publisher_obj['published_recent_30_days']['count']}"
+              f", 수집 시각 : {publisher_obj['published_recent_30_days']['now'].isoformat()}")
+
+
+def get_book_detail_with_api(
+        session_obj: requests.Session,
+        b_id: str,
+) -> Dict:
+    return call_with_response_check(
+        f"책 [{b_id}] GET API",
+        200,
+        session_obj.get,
+        config.make_book_api_url(b_id),
+    ).json()
+
+
+def get_publisher_detail(
+        session_obj: requests.Session,
+        publisher: str,
+) -> Dict:
+    headers = {
+        "accept": "application/json",
+    }
+    current_head_result_index = 0
+    payload = {
+        "adult_exclude": "n",
+        "site": "ridi-store",
+        "where": "book",
+        "order": "recent",
+        "serial": "n",
+        "rent": "n",
+        "select": "n",
+        "category_id": "0",
+        "start": str(current_head_result_index),
+        "what": "publisher",
+        "keyword": publisher,
+    }
+    search_result = call_with_response_check(
+        f"[{publisher}] 검색",
+        200,
+        session_obj.get,
+        config.PUBLISHER_SEARCH_API_URL,
+        headers=headers,
+        params=payload,
+    ).json()
+
+    total_count = search_result["total"]
+
+    published_recent_30_days_count = 0
+    publisher_detail = {}
+
+    now_datetime_obj = None
+
+    while current_head_result_index < total_count:
+        b_ids = [book["b_id"] for book in search_result["books"]]
+
+        published_recent_30_days_count_in_search_result = 0
+        for i, b_id in reversed(list(enumerate(b_ids))):
+            book_info = get_book_detail_with_api(session_obj, b_id)
+            publisher_detail["publisher"] = Publisher(
+                publisher_id=book_info["publisher"]["id"],
+                publisher_name=book_info["publisher"]["name"],
+                cp_name=book_info["publisher"]["cp_name"],
+            )
+            published_datetime = book_info["publish"]["ridibooks_publish"]
+            published_datetime_obj = parse(published_datetime)
+            if not now_datetime_obj:
+                now_datetime_obj = datetime.utcnow().astimezone(published_datetime_obj.tzinfo)
+            if (now_datetime_obj - published_datetime_obj) < timedelta(days=30):
+                published_recent_30_days_count_in_search_result = i + 1
+                break
+
+        published_recent_30_days_count += published_recent_30_days_count_in_search_result
+
+        if published_recent_30_days_count_in_search_result < config.N_SEARCH_RESULT_PER_PAGE:
+            break
+
+        current_head_result_index += config.N_SEARCH_RESULT_PER_PAGE
+        headers["start"] = str(current_head_result_index)
+        search_result = call_with_response_check(
+            f"[{publisher}] 검색",
+            200,
+            session_obj.get,
+            config.PUBLISHER_SEARCH_API_URL,
+            headers=headers,
+            params=payload,
+        ).json()
+
+    publisher_detail["published_recent_30_days"] = {
+        "now": now_datetime_obj,
+        "count": published_recent_30_days_count,
+    }
+
+    return publisher_detail
+
+
+def publisher_scrape_worker(
+        worker_id: int,
+        publishers: List[str],
+        scrape_result: Queue,
+) -> None:
+    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+        total = len(publishers)
+        for i, publisher in enumerate(publishers):
+            print(f"출판사 정보 스크랩 워커({worker_id}) [{publisher}] 수집 중. ({i+1}/{total})")
+            scrape_result.put((publisher, get_publisher_detail(session_obj, publisher)))
+    print(f"출판사 정보 스크랩 워커({worker_id}) 수집 완료")
+
+
+def get_publisher_details(
+        publisher_lists: List[List[str]],
+) -> Dict:
+    publisher_details = dict()
+
+    scrape_processes = []
+    scrape_result_queue = Queue()
+
+    for i, publisher_list in enumerate(publisher_lists):
+        print(f"출판사 정보 스크랩 워커({i}) 시작...")
+        process = Process(target=publisher_scrape_worker, args=(i, publisher_list, scrape_result_queue,))
+        process.start()
+        scrape_processes.append(process)
+
+    alive_procs = list(scrape_processes)
+    while alive_procs:
+        try:
+            while 1:
+                scrape_result = scrape_result_queue.get(False)
+                publisher_details[scrape_result[0]] = scrape_result[1]
+        except queue.Empty:
+            pass
+
+        time.sleep(0.5)  # Give tasks a chance to put more data in
+        if not scrape_result_queue.empty():
+            continue
+        alive_procs = [p for p in alive_procs if p.is_alive()]
+
+    for i, scrape_process in enumerate(scrape_processes):
+        print(f"출판사 정보 스크랩 워커({i}) 종료 대기")
+        scrape_process.join()
+
+    print(f"+++ 출판사 정보 스크랩 종료...{len(publisher_details)}개의 책 출판 데이터 수집 완료")
+
+    return publisher_details
+
+
+def get_publishers_from_book_ids(
+        book_details: Dict,
+        book_id_list: List[str],
+) -> Dict:
+    n_scrape_worker_process = config.N_SCRAPE_WORKER
+
+    publishers = {
+        book_details[book_id].publisher
+        for book_id in book_id_list
+    }
+
+    publisher_lists = [[] for i in range(n_scrape_worker_process)]
+
+    for i, publisher in enumerate(publishers):
+        publisher_lists[i % n_scrape_worker_process].append(publisher)
+
+    return get_publisher_details(publisher_lists)
+
 
 def scrape_romance_home():
     print(f"+++ 리디북스 로맨스 데이터 수집기 - 실행일시 : {str(datetime.now())[0:19]}"
@@ -284,9 +455,22 @@ def scrape_romance_home():
         )
     )
 
+    book_details = get_book_details(
+        make_n_array(today_recommendation_list, today_new_list, event_books)
+    )
+
     print_scrape_result(
-        get_book_details(make_n_array(today_recommendation_list, today_new_list, event_books, 10)),
+        book_details,
         today_recommendation_list,
         today_new_list,
         event_books,
+        get_publishers_from_book_ids(
+            book_details,
+            [book_item['b_id'] for book_item in today_recommendation_list + today_new_list],
+        ),
     )
+
+
+def test():
+    with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
+        print(get_publisher_detail(session_obj, "마롱"))

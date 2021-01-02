@@ -1,11 +1,15 @@
 import os
 
 RIDIBOOKS_HOST = "https://ridibooks.com"
+SEARCH_API_HOST = "https://search-api.ridibooks.com"
+GET_BOOK_INFO_API_HOST = "https://book-api.ridibooks.com"
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_PASSWORD = os.getenv("ACCOUNT_PASSWORD")
 LOGIN_URL = f"{RIDIBOOKS_HOST}/account/action/login"
 ROMANCE_HOME = f"{RIDIBOOKS_HOST}/romance/"
-
+N_SCRAPE_WORKER = 10
+N_SEARCH_RESULT_PER_PAGE = 24
+PUBLISHER_SEARCH_API_URL = f"{SEARCH_API_HOST}/search"
 SOUP_FIND_ARGS = {
     "GET_NEXT_DATA": {
         "name": "script",
@@ -60,3 +64,7 @@ def make_event_url(event_id):
 
 def make_book_url(book_id):
     return f"{RIDIBOOKS_HOST}/books/{book_id}"
+
+
+def make_book_api_url(book_id):
+    return f"{GET_BOOK_INFO_API_HOST}/books/{book_id}"
