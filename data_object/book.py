@@ -1,4 +1,7 @@
 from enum import Enum
+from typing import List
+
+from data_object.author import RidibooksAuthor
 
 
 class Platform(Enum):
@@ -10,7 +13,14 @@ class Platform(Enum):
 
 
 class Book(object):
-    def __init__(self, platform, book_id, title, authors, publisher):
+    def __init__(
+            self,
+            platform: Platform,
+            book_id: str,
+            title: str,
+            authors: List[RidibooksAuthor],
+            publisher: str,
+    ):
         self.platform = platform
         self.book_id = book_id
         self.title = title

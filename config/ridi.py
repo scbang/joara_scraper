@@ -44,14 +44,16 @@ SOUP_FIND_ARGS = {
                 "name": "span",
                 "class_": "StarRate_ParticipantCount"
             },
-            "AUTHOR_DETAIL_LINK": {
-                "name": "a",
-                "class_": "author_detail_link",
-                "href": True,
-            },
+        },
+    },
+    "AUTHOR_DETAIL_PAGE": {
+        "GET_BOOK_LIST": {
+            "name": "div",
+            "class_": "book_macro_landscape"
         },
     },
 }
+SOUP_FIND_ARGS["AUTHOR_DETAIL_PAGE"]["GET_BOOK_DETAIL"] = SOUP_FIND_ARGS["EVENT_PAGE"]["GET_BOOK_DETAIL"]
 
 
 def make_url(url):
@@ -68,3 +70,7 @@ def make_book_url(book_id):
 
 def make_book_api_url(book_id):
     return f"{GET_BOOK_INFO_API_HOST}/books/{book_id}"
+
+
+def make_author_url(author_id):
+    return f"{RIDIBOOKS_HOST}/author/{author_id}"

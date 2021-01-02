@@ -11,6 +11,7 @@ from dateutil.parser import parse
 
 import config
 from config import make_url
+from data_object.author import RidibooksAuthor
 from data_object.book import RidibooksBook
 from data_object.publisher import Publisher
 
@@ -76,17 +77,18 @@ def get_book_detail(
 
     book_link_find_args = config.ridi.SOUP_FIND_ARGS["BOOK_DETAIL_PAGE"]
 
-    publisher_detail_link_selector = book_link_find_args["PUBLISHER_DETAIL_LINK"]
-    keywords_selector = book_link_find_args["KEYWORDS"]
+    need_author_detail = "need_author_detail" in book_info and book_info["need_author_detail"]
+    if need_author_detail or not "authors" in book_info:
+        book_info["authors"] = get_book_detail_with_api(session_obj, book_info['b_id'], need_author_detail)["authors"]
 
     return RidibooksBook(
         link=book_link,
         star_rate_participants_count=book_info["rating"]["buyer_rating_count"],
         start_rate=book_info["rating"]["buyer_rating_score"],
         title=book_info["title"],
-        authors=[author['name'] for author in book_info['authors']],
-        publisher=book_detail_soup.find(**publisher_detail_link_selector).text,
-        keywords=[keywords_span.text for keywords_span in book_detail_soup.find_all(**keywords_selector)],
+        authors=[RidibooksAuthor(**author) for author in book_info['authors']],
+        publisher=book_detail_soup.find(**book_link_find_args["PUBLISHER_DETAIL_LINK"]).text,
+        keywords=[keywords_span.text for keywords_span in book_detail_soup.find_all(**book_link_find_args["KEYWORDS"])],
     )
 
 
@@ -94,7 +96,7 @@ def scrape_worker(
         worker_id: int,
         book_info_list: List,
         scrape_result: Queue,
-):
+) -> None:
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
         total = len(book_info_list)
         for i, book_info in enumerate(book_info_list):
@@ -120,25 +122,21 @@ def scrape_event(
         title_html = event_book.find(**get_book_detail_find_args["TITLE_LINK"])
         title_link = title_html['href']
 
-        event_book_item = {
+        star_rate_score_html = event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"])
+        star_rate_participant_count_html = event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"])
+
+        event_book_items.append({
             "b_id": title_link.split('/')[-1],
             "title": title_html.text.strip(),
             "rating": {
                 "buyer_rating_score":
-                    event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]).text.split("점")[0]
-                    if event_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"]) else "0"
-                ,
+                    star_rate_score_html.text.split("점")[0]
+                    if star_rate_score_html else "0",
                 "buyer_rating_count":
-                    event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]).text.split("명")[0]
-                    if event_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"]) else "0",
+                    star_rate_participant_count_html.text.split("명")[0]
+                    if star_rate_participant_count_html else "0",
             },
-            "authors": [
-                {
-                    "name": event_book.find(**get_book_detail_find_args["AUTHOR_DETAIL_LINK"]).text,
-                }
-            ],
-        }
-        event_book_items.append(event_book_item)
+        })
 
     return event_book_items
 
@@ -187,14 +185,17 @@ def make_n_array(
     book_item_lists = [[] for i in range(n_scrape_worker_process)]
 
     n = 0
-    for today_recommendation in today_recommendation_list:
-        book_item_lists[n % n_scrape_worker_process].append(today_recommendation)
+    for book_item in today_recommendation_list:
+        book_item["need_author_detail"] = True
+        book_item_lists[n % n_scrape_worker_process].append(book_item)
         n += 1
-    for today_new in today_new_list:
-        book_item_lists[n % n_scrape_worker_process].append(today_new)
+    for book_item in today_new_list:
+        book_item["need_author_detail"] = False
+        book_item_lists[n % n_scrape_worker_process].append(book_item)
         n += 1
     for event_book in event_books:
         for book_item in event_book["book_items"]:
+            book_item["need_author_detail"] = False
             book_item_lists[n % n_scrape_worker_process].append(book_item)
             n += 1
 
@@ -278,16 +279,76 @@ def print_scrape_result(
               f", 수집 시각 : {publisher_obj['published_recent_30_days']['now'].isoformat()}")
 
 
+def get_author_recent_published_detail(
+        session_obj: requests.Session,
+        author_id: int,
+        exclude_book_name: str,
+) -> Dict:
+    # https://ridibooks.com/author/2317?id=2317&order=recent#books
+    author_detail_page = call_with_response_check(
+        f"작가 [{author_id}] 페이지 읽기",
+        200,
+        session_obj.get,
+        config.make_author_url(author_id),
+        params={"id": str(author_id), "order": "recent"},
+    )
+    author_detail_soup = BeautifulSoup(author_detail_page.text, 'html.parser')
+    author_detail_find_args = config.ridi.SOUP_FIND_ARGS["AUTHOR_DETAIL_PAGE"]
+
+    get_book_detail_find_args = author_detail_find_args["GET_BOOK_DETAIL"]
+
+    # author_detail_find_args[]
+    author_books = author_detail_soup.find_all(name="div", class_="book_macro_landscape")
+    last_published_book_detail = {}
+    for author_book in author_books:
+        title_html = author_book.find(**get_book_detail_find_args["TITLE_LINK"])
+        title = title_html.text.strip()
+        if exclude_book_name in title or title in exclude_book_name:
+            continue
+
+        title_link = title_html['href']
+
+        star_rate_score_html = author_book.find(**get_book_detail_find_args["STAR_RATE_SCORE"])
+        star_rate_participant_count_html = author_book.find(**get_book_detail_find_args["STAR_RATE_PARTICIPANT_COUNT"])
+
+        last_published_book_detail = {
+            "b_id": title_link.split('/')[-1],
+            "link": config.make_url(title_link),
+            "title": title_html.text.strip(),
+            "rating": {
+                "buyer_rating_score":
+                    star_rate_score_html.text.split("점")[0]
+                    if star_rate_score_html else "0",
+                "buyer_rating_count":
+                    star_rate_participant_count_html.text.split("명")[0]
+                    if star_rate_participant_count_html else "0",
+            },
+        }
+
+        break
+
+    return last_published_book_detail
+
+
 def get_book_detail_with_api(
         session_obj: requests.Session,
         b_id: str,
+        b_get_last_published_rating: bool = False,
 ) -> Dict:
-    return call_with_response_check(
+    book_detail = call_with_response_check(
         f"책 [{b_id}] GET API",
         200,
         session_obj.get,
         config.make_book_api_url(b_id),
     ).json()
+    if b_get_last_published_rating:
+        for author in book_detail["authors"]:
+            author["recent_published_book"] = get_author_recent_published_detail(
+                session_obj,
+                author["id"],
+                book_detail["series"]["property"]["title"] if "series" in book_detail else book_detail["title"]["main"],
+            )
+    return book_detail
 
 
 def get_publisher_detail(
@@ -473,4 +534,4 @@ def scrape_romance_home():
 
 def test():
     with login(config.ACCOUNT_ID, config.ACCOUNT_PASSWORD) as session_obj:
-        print(get_publisher_detail(session_obj, "마롱"))
+        print(get_author_recent_published_detail(session_obj, 2317, "블랙 스톰(Black Storm)"))

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
 import config
-from data_object.author import Author
+from data_object.author import JoaraAuthor
 
 
 def _convert_to_int(num_string):
@@ -126,7 +126,7 @@ def _get_list(query_obj, date_obj):
             author_elem = td_list[1].select(".member_nickname")
             author_member_id = author_elem[0].attrs["member_id"]
             author_member_nickname = author_elem[0].text.strip()
-            author = Author(author_member_id, author_member_nickname)
+            author = JoaraAuthor(author_member_id, author_member_nickname)
 
             title_element = td_list[2].a
             book_home_link = title_element["href"]
