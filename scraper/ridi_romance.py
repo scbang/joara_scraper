@@ -139,7 +139,7 @@ def scrape_event(
                     star_rate_score_html.text.split("점")[0]
                     if star_rate_score_html else "0",
                 "buyer_rating_count":
-                    star_rate_participant_count_html.text.split("명")[0]
+                    star_rate_participant_count_html.text.split("명")[0].replace(",", "")
                     if star_rate_participant_count_html else "0",
             },
         })
@@ -339,7 +339,7 @@ def get_author_recent_published_detail(
     return last_published_book_detail
 
 
-def determine_book_title(book_detail):
+def determine_book_title(book_detail: Dict) -> str:
     return book_detail["series"]["property"]["title"] if "series" in book_detail else book_detail["title"]["main"]
 
 
@@ -544,16 +544,22 @@ def scrape_romance_home(account_id, account_password):
         make_n_array(today_recommendation_list, today_new_list, event_books)
     )
 
-    print_scrape_result(
+    publisher_details = get_publishers_from_book_ids(
         book_details,
-        today_recommendation_list,
-        today_new_list,
-        event_books,
-        get_publishers_from_book_ids(
-            book_details,
-            [book_item['b_id'] for book_item in today_recommendation_list + today_new_list],
-        ),
+        [book_item['b_id'] for book_item in today_recommendation_list + today_new_list],
     )
+
+    scrape_data = {
+        "book_details": book_details,
+        "today_recommendation_list": today_recommendation_list,
+        "today_new_list": today_new_list,
+        "event_books": event_books,
+        "publishers": publisher_details,
+    }
+
+    print_scrape_result(**scrape_data)
+
+    return scrape_data
 
 
 def test(account_id, account_password):

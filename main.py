@@ -96,7 +96,7 @@ if __name__ == "__main__":
     today = date.today()
     start_date_string = sys.argv[1] if len(sys.argv) >= 2 else f"{today.year%100:02d}{today.month:02d}{today.day:02d}"
     end_date_string = sys.argv[2] if len(sys.argv) >= 3 else start_date_string
-    xlsx_file_name = sys.argv[3] if len(sys.argv) >= 4 else config.DEFAULT_RESULT_XLSX_FILE_NAME
+    xlsx_file_name = sys.argv[3] if len(sys.argv) >= 4 else config.joara.DEFAULT_RESULT_XLSX_FILE_NAME
     start_date = datetime.strptime(start_date_string, "%y%m%d")
     end_date = datetime.strptime(end_date_string, "%y%m%d")
     one_day = timedelta(days=1)

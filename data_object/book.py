@@ -50,3 +50,6 @@ class RidibooksBook(Book):
                f", 별점수 = {self.star_rate_participants_count}" \
                f", 별점 = {self.start_rate}" \
                f", 키워드 = [{', '.join(map(str, self.keywords))}]"
+
+    def keywords_to_str(self) -> str:
+        return ', '.join(self.keywords)

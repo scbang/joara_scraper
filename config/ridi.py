@@ -52,6 +52,40 @@ SOUP_FIND_ARGS = {
     },
 }
 
+DEFAULT_RESULT_XLSX_FILE_NAME = "리디북스_로맨스_e북_정리.xlsx"
+excludes_for_today_recommendation = ['today_new_list', 'event_books']
+excludes_for_event = ['today_recommendation_list', 'today_new_list']
+BOOK_DATA_HEADERS = [
+    ("순서", "i+1", True, []),
+    ("작품 제목", "book_detail.title", True, []),
+    ("출판사 이름", "book_detail.publisher", True, []),
+    ("작가 이름", "author.name", False, []),
+    ("최근 출간작 제목", "recent_published_book['title'] if recent_published_book else ''", False,
+     excludes_for_today_recommendation),
+    ("최근 출간작 링크", "recent_published_book['link'] if recent_published_book else ''", False,
+     excludes_for_today_recommendation),
+    ("최근 출간작 별점", "recent_published_book['rating']['buyer_rating_score'] if recent_published_book else ''", False,
+     excludes_for_today_recommendation),
+    ("최근 출간작 별점수", "recent_published_book['rating']['buyer_rating_count'] if recent_published_book else ''", False,
+     excludes_for_today_recommendation),
+    ("작가 ID", "author.id", False, []),
+    ("작가 Role", "author.role", False, []),
+    ("작품 별점", "book_detail.start_rate", True, []),
+    ("작품 별점 참여수", "book_detail.star_rate_participants_count", True, []),
+    ("작품 키워드", "book_detail.keywords_to_str()", True, []),
+    ("작품 ID", "book_detail.book_id", True, []),
+    ("작품 링크", "book_detail.link", True, []),
+    ("오리발 노출 여부", "found_in_today_recommendation", True, excludes_for_event),
+    ("오신 노출 여부", "found_in_today_new", True, excludes_for_event),
+]
+PUBLISHER_DETAIL_HEADERS = [
+    ("출판사 이름", "publisher_obj['publisher'].publisher_name"),
+    ("출판사 ID", "publisher_obj['publisher'].publisher_id"),
+    ("출판사 CP 이름", "publisher_obj['publisher'].cp_name"),
+    ("최근 30일간 출간 종수", "publisher_obj['published_recent_30_days']['count']"),
+    ("수집 시각", "publisher_obj['published_recent_30_days']['now'].isoformat()"),
+]
+
 
 def make_url(url):
     return f"{RIDIBOOKS_HOST}{url}"
