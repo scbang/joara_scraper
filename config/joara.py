@@ -1,5 +1,5 @@
-HOST = "http://www.joara.com"
-BASE_PATH = HOST + "/best/today_best_list.html"
+JOARA_HOST = "http://www.joara.com"
+BASE_PATH = JOARA_HOST + "/best/today_best_list.html"
 FREE_QUERY = {
     "QUERY": {
         "sl_subcategory": "series",
