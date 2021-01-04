@@ -70,7 +70,7 @@ BOOK_DATA_HEADERS = [
      excludes_for_today_recommendation),
     ("작가 ID", "author.id", False, []),
     ("작가 Role", "author.role", False, []),
-    ("작품 별점", "book_detail.start_rate", True, []),
+    ("작품 별점", "book_detail.star_rate", True, []),
     ("작품 별점 참여수", "book_detail.star_rate_participants_count", True, []),
     ("작품 키워드", "book_detail.keywords_to_str()", True, []),
     ("작품 ID", "book_detail.book_id", True, []),

@@ -88,7 +88,7 @@ def get_book_detail(
     return RidibooksBook(
         link=book_link,
         star_rate_participants_count=book_info["rating"]["buyer_rating_count"],
-        start_rate=book_info["rating"]["buyer_rating_score"],
+        star_rate=book_info["rating"]["buyer_rating_score"],
         title=determine_book_title(book_detail),
         authors=[RidibooksAuthor(**author) for author in book_info['authors']],
         publisher=book_detail_soup.find(**book_link_find_args["PUBLISHER_DETAIL_LINK"]).text,

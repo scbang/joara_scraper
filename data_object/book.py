@@ -36,19 +36,19 @@ class Book(object):
 
 
 class RidibooksBook(Book):
-    def __init__(self, link, star_rate_participants_count, start_rate, title, authors, publisher, keywords):
+    def __init__(self, link, star_rate_participants_count, star_rate, title, authors, publisher, keywords):
         book_id = link.split("/")[-1]
         super().__init__(Platform.RIDIBOOKS, book_id, title, authors, publisher)
         self.link = link
         self.star_rate_participants_count = star_rate_participants_count
-        self.start_rate = start_rate
+        self.star_rate = star_rate
         self.keywords = keywords
 
     def __str__(self):
         return f"{str(super().__str__())}" \
                f", 링크 = {self.link}" \
                f", 별점수 = {self.star_rate_participants_count}" \
-               f", 별점 = {self.start_rate}" \
+               f", 별점 = {self.star_rate}" \
                f", 키워드 = [{', '.join(map(str, self.keywords))}]"
 
     def keywords_to_str(self) -> str:
