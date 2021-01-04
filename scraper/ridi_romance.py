@@ -251,7 +251,9 @@ def get_book_details(
         print(f"책 스크랩 워커({i}) 종료 대기")
         scrape_process.join()
 
-    print(f"+++ 책 스크랩 종료...{len(book_details)}개의 책 페이지 데이터 수집 완료")
+    print(f"+++ 책 스크랩 종료..."
+          f"{sum([len(book_detail) for section, book_detail in book_details.items()])}"
+          f"개의 책 페이지 데이터 수집 완료")
 
     return book_details
 
