@@ -98,10 +98,12 @@ def get_book_detail(
 
 def scrape_worker(
         worker_id: int,
+        user_id: int or str,
+        user_password: str,
         book_info_list: List,
         scrape_result: Queue,
 ) -> None:
-    with login(ACCOUNT_ID, ACCOUNT_PASSWORD) as session_obj:
+    with login(user_id, user_password) as session_obj:
         total = len(book_info_list)
         for i, book_info_tuple in enumerate(book_info_list):
             section = book_info_tuple[0]
@@ -211,6 +213,9 @@ def make_n_array(
 def get_book_details(
         book_item_lists: List[List[Dict]],
 ) -> Dict:
+    global ACCOUNT_ID
+    global ACCOUNT_PASSWORD
+
     book_details = {
         "today_recommendation_list": dict(),
         "today_new_list": dict(),
@@ -223,7 +228,8 @@ def get_book_details(
     for i, book_item_list in enumerate(book_item_lists):
         print(f"책 스크랩 워커({i}) 시작...")
         # print(f"{[book_item['b_id'] for book_item in book_item_list]}")
-        process = Process(target=scrape_worker, args=(i, book_item_list, scrape_result_queue,))
+        process = Process(target=scrape_worker,
+                          args=(i, ACCOUNT_ID, ACCOUNT_PASSWORD, book_item_list, scrape_result_queue,))
         process.start()
         scrape_processes.append(process)
 
@@ -446,10 +452,12 @@ def get_publisher_detail(
 
 def publisher_scrape_worker(
         worker_id: int,
+        user_id: int or str,
+        user_password: str,
         publishers: List[str],
         scrape_result: Queue,
 ) -> None:
-    with login(ACCOUNT_ID, ACCOUNT_PASSWORD) as session_obj:
+    with login(user_id, user_password) as session_obj:
         total = len(publishers)
         for i, publisher in enumerate(publishers):
             print(f"출판사 정보 스크랩 워커({worker_id}) [{publisher}] 수집 중. ({i+1}/{total})")
@@ -460,6 +468,9 @@ def publisher_scrape_worker(
 def get_publisher_details(
         publisher_lists: List[List[str]],
 ) -> Dict:
+    global ACCOUNT_ID
+    global ACCOUNT_PASSWORD
+
     publisher_details = dict()
 
     scrape_processes = []
@@ -467,7 +478,8 @@ def get_publisher_details(
 
     for i, publisher_list in enumerate(publisher_lists):
         print(f"출판사 정보 스크랩 워커({i}) 시작...")
-        process = Process(target=publisher_scrape_worker, args=(i, publisher_list, scrape_result_queue,))
+        process = Process(target=publisher_scrape_worker,
+                          args=(i, ACCOUNT_ID, ACCOUNT_PASSWORD, publisher_list, scrape_result_queue,))
         process.start()
         scrape_processes.append(process)
 
