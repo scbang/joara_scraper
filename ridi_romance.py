@@ -153,7 +153,9 @@ def main(_id: str, password: str, file_name: str):
     scrape_data = scraper.scrape_romance_home(_id, password)
     sheet_rows = [[f"리디북스 로맨스 e북 메인 페이지 데이터 수집기 - 실행일시 : {execution_datetime_str}"]]
     merge_infos = get_excel_rows(sheet_rows, **scrape_data)
-    sheet = xlsx_obj.create_sheet(title=f'{execution_datetime_str.replace(":", "-")}')
+    sheet = xlsx_obj.create_sheet(
+        title=f'{(execution_datetime_str[0:19] + execution_datetime_str[25:]).replace(":", "-")}'
+    )
     for row in sheet_rows:
         sheet.append(row)
     for merge_info in merge_infos:
