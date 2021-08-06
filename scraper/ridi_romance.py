@@ -1,13 +1,12 @@
 import json
 import queue
+import requests
 import time
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+from dateutil.parser import parse
 from multiprocessing import Process, Queue
 from typing import Dict, List, Tuple
-
-import requests
-from bs4 import BeautifulSoup
-from dateutil.parser import parse
 
 import config
 from config import make_url
@@ -108,7 +107,7 @@ def scrape_worker(
         for i, book_info_tuple in enumerate(book_info_list):
             section = book_info_tuple[0]
             book_info = book_info_tuple[1]
-            print(f"책 스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중. ({i+1}/{total})")
+            print(f"책 스크랩 워커({worker_id}) {config.make_book_url(book_info['b_id'])} 수집 중. ({i + 1}/{total})")
             scrape_result.put((section, book_info["b_id"], get_book_detail(session_obj, book_info)))
     print(f"책 스크랩 워커({worker_id}) 수집 완료")
 
@@ -269,13 +268,13 @@ def print_scrape_result(
         print("")
         print(f"+++ [오늘, 리디의 발견] 수집 결과, {len(today_recommendation_list)}개의 책 페이지 발견")
         for i, today_recommendation in enumerate(today_recommendation_list):
-            print(f"{i+1}번째 책, {book_details['today_recommendation_list'][today_recommendation['b_id']]}")
+            print(f"{i + 1}번째 책, {book_details['today_recommendation_list'][today_recommendation['b_id']]}")
 
     if today_new_list:
         print("")
         print(f"+++ [오늘의 신간] 수집 결과, {len(today_new_list)}개의 책 페이지 발견")
         for i, today_new in enumerate(today_new_list):
-            print(f"{i+1}번째 책, {book_details['today_new_list'][today_new['b_id']]}")
+            print(f"{i + 1}번째 책, {book_details['today_new_list'][today_new['b_id']]}")
 
     if event_books:
         print("")
@@ -283,11 +282,11 @@ def print_scrape_result(
         for i, item in enumerate(event_books):
             top_banner_event = item["event_info"]
             event_book_list = item["book_items"]
-            print(f"--- {i+1}번째 이벤트, [{top_banner_event['title']}]"
+            print(f"--- {i + 1}번째 이벤트, [{top_banner_event['title']}]"
                   f", 링크 = {make_url(top_banner_event['url'])}"
                   f", {len(event_book_list)}개의 책 페이지 발견")
             for nth, event_book in enumerate(event_book_list):
-                print(f"{nth+1}번째 책, {book_details['event_books'][event_book['b_id']]}")
+                print(f"{nth + 1}번째 책, {book_details['event_books'][event_book['b_id']]}")
 
     print(f"출판사 {len(publishers)}개 수집됨. {list(publishers)}")
     for publisher_name, publisher_obj in publishers.items():
@@ -462,7 +461,7 @@ def publisher_scrape_worker(
     with login(user_id, user_password) as session_obj:
         total = len(publishers)
         for i, publisher in enumerate(publishers):
-            print(f"출판사 정보 스크랩 워커({worker_id}) [{publisher}] 수집 중. ({i+1}/{total})")
+            print(f"출판사 정보 스크랩 워커({worker_id}) [{publisher}] 수집 중. ({i + 1}/{total})")
             scrape_result.put((publisher, get_publisher_detail(session_obj, publisher)))
     print(f"출판사 정보 스크랩 워커({worker_id}) 수집 완료")
 
@@ -550,7 +549,7 @@ def scrape_romance_home(account_id, account_password):
         json.loads(
             BeautifulSoup(romance_response.text, 'html.parser')
                 .find(**config.ridi.SOUP_FIND_ARGS["GET_NEXT_DATA"])
-                .text
+                .string
         )
     )
 
