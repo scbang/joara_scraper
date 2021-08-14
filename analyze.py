@@ -1,9 +1,8 @@
-﻿import os
+﻿import openpyxl
+import os
 import sys
 from copy import copy
 from datetime import date, datetime
-
-import openpyxl
 from openpyxl.cell.cell import Cell
 from openpyxl.styles import Font
 
@@ -192,6 +191,6 @@ def main(result_file_name, analyzed_file_name):
 
 if __name__ == "__main__":
     today = date.today()
-    result_xlsx_file_name = sys.argv[1] if len(sys.argv) >= 2 else config.DEFAULT_RESULT_XLSX_FILE_NAME
-    analyzed_xlsx_file_name = sys.argv[2] if len(sys.argv) >= 3 else config.DEFAULT_RESULT_XLSX_FILE_NAME
+    result_xlsx_file_name = sys.argv[1] if len(sys.argv) >= 2 else config.joara.DEFAULT_RESULT_XLSX_FILE_NAME
+    analyzed_xlsx_file_name = sys.argv[2] if len(sys.argv) >= 3 else config.joara.DEFAULT_ANALYZED_XLSX_FILE_NAME
     main(result_xlsx_file_name, analyzed_xlsx_file_name)
