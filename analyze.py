@@ -37,6 +37,7 @@ def _load_from_result_file(result_file_name):
     over_20k_favorite_count_set = set()
     over_15k_favorite_count_set = set()
     over_10k_favorite_count_set = set()
+    over_5k_favorite_count_set = set()
     xlsx_obj = openpyxl.load_workbook(result_file_name)
     for ws in xlsx_obj.worksheets:
         in_free_list = in_lately_list = False
@@ -70,6 +71,8 @@ def _load_from_result_file(result_file_name):
                 over_15k_favorite_count_set.add(book_code)
             elif book_total_favorite_count >= 10000:
                 over_10k_favorite_count_set.add(book_code)
+            elif book_total_favorite_count >= 5000:
+                over_5k_favorite_count_set.add(book_code)
 
             if book_code not in group_by_book_code:
                 group_by_book_code[book_code] = []
@@ -89,6 +92,7 @@ def _load_from_result_file(result_file_name):
         "over_20k_favorite_count_set": over_20k_favorite_count_set,
         "over_15k_favorite_count_set": over_15k_favorite_count_set,
         "over_10k_favorite_count_set": over_10k_favorite_count_set,
+        "over_5k_favorite_count_set": over_5k_favorite_count_set,
         "group_by_book_code": group_by_book_code,
     }
 
@@ -108,28 +112,31 @@ def create_summary_sheet(xlsx_obj, all_rows, book_code, ws_name):
     sheet.title = f"{ws_name}_{book_code}"
 
 
-def create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
+def create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows):
     for book_code in config.ALWAYS_ANALYZE_BOOK_CODE_LIST:
         create_summary_sheet(xlsx_obj_20k, all_rows, book_code, "작품 분석")
         create_summary_sheet(xlsx_obj_15k, all_rows, book_code, "작품 분석")
         create_summary_sheet(xlsx_obj_10k, all_rows, book_code, "작품 분석")
+        create_summary_sheet(xlsx_obj_5k, all_rows, book_code, "작품 분석")
 
 
-def create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
-    create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows)
+def create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows):
+    create_always_include_summary_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows)
     for book_code in all_rows["over_20k_favorite_count_set"]:
         create_summary_sheet(xlsx_obj_20k, all_rows, book_code, "2만작 분석")
     for book_code in all_rows["over_15k_favorite_count_set"]:
         create_summary_sheet(xlsx_obj_15k, all_rows, book_code, "1.5만작 분석")
     for book_code in all_rows["over_10k_favorite_count_set"]:
         create_summary_sheet(xlsx_obj_10k, all_rows, book_code, "1만작 분석")
+    for book_code in all_rows["over_5k_favorite_count_set"]:
+        create_summary_sheet(xlsx_obj_5k, all_rows, book_code, "0.5만작 분석")
 
 
-def create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
+def create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows):
     pass
 
 
-def create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
+def create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows):
     top_ranked_book_code_set = set()
     for top_ranked in all_rows["top_ranked_list"]:
         target_date = datetime.strptime(top_ranked[3].value, "%y%m%d")
@@ -146,6 +153,10 @@ def create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
             ws_10k = xlsx_obj_10k[ws_name]
         else:
             ws_10k = xlsx_obj_10k.create_sheet(title=ws_name)
+        if ws_name in xlsx_obj_5k:
+            ws_5k = xlsx_obj_5k[ws_name]
+        else:
+            ws_5k = xlsx_obj_5k.create_sheet(title=ws_name)
 
         book_code = top_ranked[4].value
         strike = book_code in top_ranked_book_code_set
@@ -153,6 +164,7 @@ def create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows):
         ws_20k.append(openxyl_row_copy(ws_20k, top_ranked, strike))
         ws_15k.append(openxyl_row_copy(ws_15k, top_ranked, strike))
         ws_10k.append(openxyl_row_copy(ws_10k, top_ranked, strike))
+        ws_5k.append(openxyl_row_copy(ws_5k, top_ranked, strike))
 
 
 def main(result_file_name, analyzed_file_name):
@@ -164,14 +176,17 @@ def main(result_file_name, analyzed_file_name):
     analyzed_file_name_now_20k = f'{filename}_2만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
     analyzed_file_name_now_15k = f'{filename}_1.5만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
     analyzed_file_name_now_10k = f'{filename}_1만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
+    analyzed_file_name_now_5k = f'{filename}_0.5만작_{execution_datetime_str.replace(":", "-")}{file_extension}'
 
     xlsx_obj_20k = openpyxl.Workbook()
     xlsx_obj_15k = openpyxl.Workbook()
     xlsx_obj_10k = openpyxl.Workbook()
+    xlsx_obj_5k = openpyxl.Workbook()
 
     util.add_styles(xlsx_obj_20k)
     util.add_styles(xlsx_obj_15k)
     util.add_styles(xlsx_obj_10k)
+    util.add_styles(xlsx_obj_5k)
 
     for ws in xlsx_obj_20k.worksheets:
         xlsx_obj_20k.remove(ws)
@@ -179,14 +194,17 @@ def main(result_file_name, analyzed_file_name):
         xlsx_obj_15k.remove(ws)
     for ws in xlsx_obj_10k.worksheets:
         xlsx_obj_10k.remove(ws)
+    for ws in xlsx_obj_5k.worksheets:
+        xlsx_obj_5k.remove(ws)
 
-    create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows)
-    create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows)
-    create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, all_rows)
+    create_summary_sheets(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows)
+    create_calendar_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows)
+    create_monthly_sheet(xlsx_obj_20k, xlsx_obj_15k, xlsx_obj_10k, xlsx_obj_5k, all_rows)
 
     xlsx_obj_20k.save(analyzed_file_name_now_20k)
     xlsx_obj_15k.save(analyzed_file_name_now_15k)
     xlsx_obj_10k.save(analyzed_file_name_now_10k)
+    xlsx_obj_5k.save(analyzed_file_name_now_5k)
 
 
 if __name__ == "__main__":
