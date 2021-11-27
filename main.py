@@ -44,6 +44,18 @@ def main(date_str, file_name):
     sheet_rows = sheet_rows + scraper.today_best.get_free_list(date_obj)
     sheet_rows = sheet_rows + scraper.today_best.get_lately_list(date_obj)
 
+    if "over_5k_style" not in xlsx_obj.style_names:
+        over_5k_favorite_color = "008000"
+        over_5k_favorite_bg_color = "B2B2B2"
+
+        over_5k_style = NamedStyle(name="over_5k_style")
+        over_5k_style.font = Font(color=over_5k_favorite_color)
+        over_5k_style.fill = PatternFill(start_color=over_5k_favorite_bg_color,
+                                          end_color=over_5k_favorite_bg_color,
+                                          fill_type="solid")
+
+        xlsx_obj.add_named_style(over_10k_style)
+
     if "over_10k_style" not in xlsx_obj.style_names:
         over_10k_favorite_color = BLUE
         over_10k_favorite_bg_color = "F0E8DD"
@@ -55,6 +67,7 @@ def main(date_str, file_name):
                                           fill_type="solid")
 
         xlsx_obj.add_named_style(over_10k_style)
+
     if "over_20k_style" not in xlsx_obj.style_names:
         over_20k_favorite_color = RED
         over_20k_favorite_bg_color = "D1F5EC"
@@ -76,6 +89,8 @@ def main(date_str, file_name):
                     row_style = "over_20k_style"
                 elif book_total_favorite_count >= 10000:
                     row_style = "over_10k_style"
+                elif book_total_favorite_count >= 5000:
+                    row_style = "over_5k_style"
 
                 if row_style is not None:
                     row = styled_cells(row, sheet, row_style)

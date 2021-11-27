@@ -1,4 +1,4 @@
-JOARA_HOST = "http://www.joara.com"
+JOARA_HOST = "http://pre.joara.com"
 BASE_PATH = JOARA_HOST + "/best/today_best_list.html"
 FREE_QUERY = {
     "QUERY": {
