@@ -54,7 +54,7 @@ def main(date_str, file_name):
                                           end_color=over_5k_favorite_bg_color,
                                           fill_type="solid")
 
-        xlsx_obj.add_named_style(over_10k_style)
+        xlsx_obj.add_named_style(over_5k_style)
 
     if "over_10k_style" not in xlsx_obj.style_names:
         over_10k_favorite_color = BLUE
