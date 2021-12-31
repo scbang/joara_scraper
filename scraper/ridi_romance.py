@@ -152,7 +152,8 @@ def find_book_infos_in_next_data(
         session_obj: requests.Session,
         next_data: Dict,
 ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
-    branches = next_data["props"]["initialProps"]["pageProps"]["branches"]
+    # branches = next_data["props"]["initialProps"]["pageProps"]["branches"]
+    branches = next_data["props"]["pageProps"]["initialState"]["genreHome"]["pagesGenre"]["pagesGenre"]["branches"]
 
     top_banner_events = []
     today_new_list = []
